@@ -64,7 +64,24 @@ export default function App() {
 
     if (savedContracts) {
       try {
-        rawContracts = JSON.parse(savedContracts);
+        const parsed = JSON.parse(savedContracts);
+        if (Array.isArray(parsed)) {
+          rawContracts = parsed.map((c: any) => {
+            // Safe removal of old nominal salary fields for data privacy
+            delete c.currentSalary;
+            delete c.proposedSalary;
+            delete c.finalSalary;
+            return {
+              ...c,
+              compensationReviewNeeded: c.compensationReviewNeeded ?? false,
+              negotiationStatus: c.negotiationStatus ?? c.salaryNegotiationStatus ?? "No Negotiation",
+              negotiationNotes: c.negotiationNotes ?? "",
+              payrollFollowUpNotes: c.payrollFollowUpNotes ?? "",
+            };
+          });
+        } else {
+          rawContracts = [...INITIAL_CONTRACTS];
+        }
       } catch (e) {
         rawContracts = [...INITIAL_CONTRACTS];
       }
@@ -223,7 +240,7 @@ export default function App() {
     const headers = [
       "Employee ID", "Employee Name", "Department", "Position", "Direct Manager",
       "Contract Type", "Contract Number", "Contract Start Date", "Contract End Date",
-      "Days Remaining", "Current Salary", "Proposed Salary", "Final Salary",
+      "Days Remaining", "Compensation Review Needed", "Negotiation Status", "Negotiation Notes", "Payroll Follow-Up Notes",
       "User Recommendation", "Director Approval", "Head HR Review",
       "Contract Draft Date", "Contract Sent Date", "Signed Deadline", "Signed Received Date",
       "Contract Status", "Salary Negotiation Status", "HR PIC", "Priority", "Notes"
@@ -232,7 +249,7 @@ export default function App() {
     const rows = items.map(c => [
       c.employeeId, c.employeeName, c.department, c.position, c.directManager,
       c.contractType, c.contractNumber, c.contractStartDate, c.contractEndDate,
-      c.daysRemaining, c.currentSalary, c.proposedSalary, c.finalSalary,
+      c.daysRemaining, c.compensationReviewNeeded ? "Yes" : "No", c.negotiationStatus || "No Negotiation", (c.negotiationNotes || "").replace(/[\n,]/g, " "), (c.payrollFollowUpNotes || "").replace(/[\n,]/g, " "),
       c.userRecommendation, c.directorApproval, c.headHRReview,
       c.contractDraftDate, c.contractSentDate, c.signedDeadline, c.signedReceivedDate,
       c.contractStatus, c.salaryNegotiationStatus, c.hrPic, c.priority, c.notes.replace(/[\n,]/g, " ")

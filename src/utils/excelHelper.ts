@@ -164,11 +164,13 @@ export function normalizeSalaryNegotiationStatus(val: any): SalaryNegotiationSta
   if (!str) return SalaryNegotiationStatus.NoNegotiation;
   if (str.includes('no') || str.includes('tidak')) return SalaryNegotiationStatus.NoNegotiation;
   if (str.includes('employee') || str.includes('karyawan')) return SalaryNegotiationStatus.RequestedByEmployee;
-  if (str.includes('company') || str.includes('perusahaan')) return SalaryNegotiationStatus.ProposedByCompany;
-  if (str.includes('discuss') || str.includes('diskusi')) return SalaryNegotiationStatus.UnderDiscussion;
-  if (str.includes('approve') || str.includes('setuju')) return SalaryNegotiationStatus.Approved;
-  if (str.includes('reject') || str.includes('tolak')) return SalaryNegotiationStatus.Rejected;
-  if (str.includes('deal')) return SalaryNegotiationStatus.Deal;
+  if (str.includes('company') || str.includes('perusahaan') || str.includes('management') || str.includes('direksi')) return SalaryNegotiationStatus.WaitingManagement;
+  if (str.includes('review') || str.includes('kompensasi')) return SalaryNegotiationStatus.CompensationReviewNeeded;
+  if (str.includes('discuss') || str.includes('diskusi') || str.includes('nego')) return SalaryNegotiationStatus.UnderDiscussion;
+  if (str.includes('payroll')) return SalaryNegotiationStatus.WaitingPayroll;
+  if (str.includes('approve') || str.includes('setuju') || str.includes('deal')) return SalaryNegotiationStatus.ApprovedByManagement;
+  if (str.includes('reject') || str.includes('tolak')) return SalaryNegotiationStatus.RejectedByManagement;
+  if (str.includes('resolved') || str.includes('selesai') || str.includes('clear')) return SalaryNegotiationStatus.Resolved;
   if (str.includes('cancel') || str.includes('batal')) return SalaryNegotiationStatus.Cancelled;
   return SalaryNegotiationStatus.NoNegotiation;
 }
@@ -302,9 +304,7 @@ export function validateImportedRow(
     if (row.contractStartDate && !/^\d{4}-\d{2}-\d{2}$/.test(row.contractStartDate)) {
       warnings.push(`Contract Start Date '${row.contractStartDate}' format mismatch (expected YYYY-MM-DD)`);
     }
-    if (row.currentSalary !== undefined && isNaN(Number(row.currentSalary))) {
-      warnings.push(`Current Salary '${row.currentSalary}' is not a valid number`);
-    }
+    // Salary nominal checks removed for privacy
   } else {
     if (!row.employeeName || String(row.employeeName).trim() === '') {
       errors.push("Employee Name is required");

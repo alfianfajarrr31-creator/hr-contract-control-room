@@ -56,8 +56,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const contractSent = contracts.filter(c => c.contractStatus === ContractStatus.ContractSent).length;
   const waitingSignedContract = contracts.filter(c => c.contractStatus === ContractStatus.WaitingSignedContract).length;
 
-  const salaryNegotiation = contracts.filter(c => 
-    c.contractStatus === ContractStatus.SalaryNegotiation || 
+  const compensationReviews = contracts.filter(c => 
+    c.compensationReviewNeeded || 
     c.salaryNegotiationStatus !== SalaryNegotiationStatus.NoNegotiation
   ).length;
 
@@ -257,9 +257,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <TrendingUp className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Salary Negotiation</p>
-              <h3 className="text-2xl font-bold font-mono text-teal-700 mt-1">{salaryNegotiation}</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Ongoing negotiations</p>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Compensation Review</p>
+              <h3 className="text-2xl font-bold font-mono text-teal-700 mt-1">{compensationReviews}</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Active reviews & nego</p>
             </div>
           </div>
 

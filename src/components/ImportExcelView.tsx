@@ -54,9 +54,10 @@ const CONTRACT_FIELDS = [
   { key: "contractNumber", label: "Contract Number", required: false, synonyms: ["contract number", "no kontrak", "nomor kontrak"] },
   { key: "contractStartDate", label: "Contract Start Date", required: false, synonyms: ["contract start date", "tgl mulai", "start date", "tanggal kontrak", "tanggal mulai"] },
   { key: "contractEndDate", label: "Contract End Date", required: true, synonyms: ["contract end date", "expired", "end date", "tanggal akhir", "berakhir", "tanggal selesai"] },
-  { key: "currentSalary", label: "Current Salary", required: false, synonyms: ["current salary", "salary", "gaji", "gaji saat ini", "gaji pokok"] },
-  { key: "proposedSalary", label: "Proposed Salary", required: false, synonyms: ["proposed salary", "gaji usulan", "proposed", "usulan gaji"] },
-  { key: "finalSalary", label: "Final Salary", required: false, synonyms: ["final salary", "gaji final", "gaji disetujui", "final gaj"] },
+  { key: "compensationReviewNeeded", label: "Compensation Review Needed", required: false, synonyms: ["compensation review needed", "review compensation", "butuh review kompensasi", "perlu review kompensasi"] },
+  { key: "negotiationStatus", label: "Negotiation Status", required: false, synonyms: ["negotiation status", "status negosiasi", "status nego"] },
+  { key: "negotiationNotes", label: "Negotiation Notes", required: false, synonyms: ["negotiation notes", "catatan negosiasi", "catatan nego"] },
+  { key: "payrollFollowUpNotes", label: "Payroll/Management Follow-Up Notes", required: false, synonyms: ["payroll follow up notes", "catatan payroll", "follow up payroll"] },
   { key: "userRecommendation", label: "User Recommendation", required: false, synonyms: ["user recommendation", "rekomendasi user", "rekomendasi"] },
   { key: "directorApproval", label: "Director Approval", required: false, synonyms: ["director approval", "persetujuan direktur", "approval direktur"] },
   { key: "headHRReview", label: "Head HR Review", required: false, synonyms: ["head hr review", "review hr", "head hr"] },
@@ -119,6 +120,11 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const activeFields = importType === 'contract' ? CONTRACT_FIELDS : PROBATION_FIELDS;
+
+  const hasSalaryColumns = excelHeaders.some(h => {
+    const hl = h.toLowerCase();
+    return hl.includes("salary") || hl.includes("gaji") || hl.includes("nominal");
+  });
 
   // Handle file drop/select
   const handleFile = (selectedFile: File) => {
@@ -252,15 +258,23 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
         const contractStartDate = parseExcelDate(rawRowObj.contractStartDate);
         const contractEndDate = parseExcelDate(rawRowObj.contractEndDate);
         
-        const currentSalary = cleanCurrency(rawRowObj.currentSalary);
-        const proposedSalary = cleanCurrency(rawRowObj.proposedSalary) || currentSalary;
-        const finalSalary = cleanCurrency(rawRowObj.finalSalary) || proposedSalary;
+        const rawReviewNeeded = rawRowObj.compensationReviewNeeded;
+        const compensationReviewNeeded = rawReviewNeeded === true || 
+          (typeof rawReviewNeeded === 'string' && ['true', 'yes', 'y', '1', 'perlu', 'ya', 'needed'].includes(rawReviewNeeded.trim().toLowerCase())) ||
+          false;
+
+        const negotiationStatus = rawRowObj.negotiationStatus 
+          ? normalizeSalaryNegotiationStatus(rawRowObj.negotiationStatus) 
+          : SalaryNegotiationStatus.NoNegotiation;
+
+        const negotiationNotes = String(rawRowObj.negotiationNotes || '').trim();
+        const payrollFollowUpNotes = String(rawRowObj.payrollFollowUpNotes || '').trim();
 
         const contractStatus = normalizeStatus(rawRowObj.contractStatus, 'contract') as ContractStatus;
         const userRecommendation = normalizeUserRecommendation(rawRowObj.userRecommendation);
         const directorApproval = normalizeApprovalStatus(rawRowObj.directorApproval);
         const headHRReview = normalizeApprovalStatus(rawRowObj.headHRReview);
-        const salaryNegotiationStatus = normalizeSalaryNegotiationStatus(rawRowObj.salaryNegotiationStatus);
+        const salaryNegotiationStatus = negotiationStatus;
 
         const contractDraftDate = parseExcelDate(rawRowObj.contractDraftDate);
         const contractSentDate = parseExcelDate(rawRowObj.contractSentDate);
@@ -278,9 +292,10 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
           contractNumber,
           contractStartDate,
           contractEndDate,
-          currentSalary,
-          proposedSalary,
-          finalSalary,
+          compensationReviewNeeded,
+          negotiationStatus,
+          negotiationNotes,
+          payrollFollowUpNotes,
           userRecommendation,
           directorApproval,
           headHRReview,
@@ -645,6 +660,18 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
               </div>
             </div>
 
+            {hasSalaryColumns && (
+              <div className="mb-4 bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl flex items-start gap-3 shadow-xs" id="salary-ignored-warning">
+                <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">Salary/Payroll Columns Ignored</h4>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    For employee data privacy and role boundary protection, salary nominal columns (e.g. "Salary", "Gaji", "Nominal gaji") are automatically ignored and will not be imported.
+                  </p>
+                </div>
+              </div>
+            )}
+
             {/* Excel columns preview bubble list */}
             <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 mb-6 space-y-2">
               <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Excel Columns Detected:</span>
@@ -857,7 +884,7 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
                     {importType === 'contract' ? (
                       <>
                         <th className="px-4 py-3">Contract Span</th>
-                        <th className="px-4 py-3">Final Salary</th>
+                        <th className="px-4 py-3">Compensation & Nego</th>
                         <th className="px-4 py-3">Contract Status</th>
                       </>
                     ) : (
@@ -918,8 +945,19 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
                               <div>Start: {cleaned.contractStartDate || "-"}</div>
                               <div className="font-bold text-indigo-700">End: {cleaned.contractEndDate || <span className="text-rose-400 italic">[Blank]</span>}</div>
                             </td>
-                            <td className="px-4 py-4 font-mono font-semibold text-slate-850">
-                              Rp {cleaned.finalSalary?.toLocaleString("id-ID") || "0"}
+                            <td className="px-4 py-4">
+                              <div className="flex flex-col gap-1">
+                                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold w-max ${
+                                  cleaned.compensationReviewNeeded 
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200" 
+                                    : "bg-slate-50 text-slate-500"
+                                }`}>
+                                  {cleaned.compensationReviewNeeded ? "Review Needed" : "No Review"}
+                                </span>
+                                {cleaned.negotiationStatus && cleaned.negotiationStatus !== "No Negotiation" && (
+                                  <span className="text-[10px] text-indigo-600 font-medium">{cleaned.negotiationStatus}</span>
+                                )}
+                              </div>
                             </td>
                             <td className="px-4 py-4">
                               <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">

@@ -53,12 +53,14 @@ export enum ApprovalStatus {
 
 export enum SalaryNegotiationStatus {
   NoNegotiation = "No Negotiation",
+  CompensationReviewNeeded = "Compensation Review Needed",
   RequestedByEmployee = "Requested by Employee",
-  ProposedByCompany = "Proposed by Company",
   UnderDiscussion = "Under Discussion",
-  Approved = "Approved",
-  Rejected = "Rejected",
-  Deal = "Deal",
+  WaitingPayroll = "Waiting Payroll",
+  WaitingManagement = "Waiting Management",
+  ApprovedByManagement = "Approved by Management",
+  RejectedByManagement = "Rejected by Management",
+  Resolved = "Resolved",
   Cancelled = "Cancelled"
 }
 
@@ -76,9 +78,10 @@ export interface ContractItem {
   contractStartDate: string;
   contractEndDate: string;
   daysRemaining: number; // Auto calculated
-  currentSalary: number;
-  proposedSalary: number;
-  finalSalary: number;
+  compensationReviewNeeded?: boolean;
+  negotiationStatus?: string;
+  negotiationNotes?: string;
+  payrollFollowUpNotes?: string;
   userRecommendation: UserRecommendation;
   directorApproval: ApprovalStatus;
   headHRReview: ApprovalStatus;

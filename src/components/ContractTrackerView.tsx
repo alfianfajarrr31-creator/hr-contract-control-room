@@ -428,36 +428,46 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                                 </div>
                               </div>
 
-                              {/* Salaries & Negotiation Column */}
+                              {/* Compensation & Negotiation Column */}
                               <div className="space-y-2 border-r border-slate-100 pr-4">
                                 <h4 className="font-semibold text-slate-800 font-display flex items-center gap-1.5 border-b border-slate-100 pb-1.5 mb-2 uppercase text-xs tracking-wider">
-                                  <DollarSign className="h-3.5 w-3.5 text-slate-400" />
-                                  Salary Control
+                                  <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
+                                  Compensation & Nego
                                 </h4>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400 text-xs">Current Salary:</span>
-                                  <span className="font-mono text-slate-700 font-medium">{formatIDR(c.currentSalary)}</span>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-slate-400 text-xs">Review Needed:</span>
+                                  <span className={`px-2 py-0.5 rounded text-xs font-semibold ${
+                                    c.compensationReviewNeeded 
+                                      ? "text-rose-700 bg-rose-50 border border-rose-100" 
+                                      : "text-slate-500 bg-slate-50 border border-slate-100"
+                                  }`}>
+                                    {c.compensationReviewNeeded ? "Yes" : "No"}
+                                  </span>
                                 </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-400 text-xs">Proposed Salary:</span>
-                                  <span className="font-mono text-slate-700 font-medium">{formatIDR(c.proposedSalary)}</span>
-                                </div>
-                                <div className="flex justify-between border-t border-slate-100 pt-1">
-                                  <span className="text-slate-600 text-xs font-semibold">Final Salary:</span>
-                                  <span className="font-mono text-indigo-700 font-bold">{formatIDR(c.finalSalary)}</span>
-                                </div>
-                                <div className="pt-1.5">
-                                  <div className="text-slate-400 text-xs mb-1">Nego Status:</div>
-                                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-medium border ${
-                                    c.salaryNegotiationStatus === SalaryNegotiationStatus.Deal
+                                <div className="pt-1">
+                                  <span className="text-slate-400 text-xs block mb-1">Nego Status:</span>
+                                  <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${
+                                    c.salaryNegotiationStatus === SalaryNegotiationStatus.Resolved
                                       ? "bg-emerald-50 text-emerald-700 border-emerald-100"
                                       : c.salaryNegotiationStatus === SalaryNegotiationStatus.NoNegotiation
                                       ? "bg-slate-50 text-slate-500 border-slate-100"
-                                      : "bg-amber-50 text-amber-700 border-amber-100"
+                                      : "bg-indigo-50 text-indigo-700 border-indigo-100"
                                   }`}>
                                     {c.salaryNegotiationStatus}
                                   </span>
                                 </div>
+                                {c.negotiationNotes && (
+                                  <div className="pt-1.5">
+                                    <span className="text-slate-400 text-xs block">Nego Notes:</span>
+                                    <p className="text-[11px] text-slate-600 line-clamp-2 italic">{c.negotiationNotes}</p>
+                                  </div>
+                                )}
+                                {c.payrollFollowUpNotes && (
+                                  <div className="pt-1 border-t border-slate-100 mt-1">
+                                    <span className="text-slate-400 text-xs block">Payroll/Mgmt Notes:</span>
+                                    <p className="text-[11px] text-slate-600 line-clamp-2 italic">{c.payrollFollowUpNotes}</p>
+                                  </div>
+                                )}
                               </div>
 
                               {/* Approval Tracking Column */}

@@ -7,7 +7,7 @@ import {
   SalaryNegotiationStatus 
 } from "../types";
 import { DEPARTMENTS, HR_PICS } from "../seedData";
-import { Save, ArrowLeft, AlertCircle, HelpCircle } from "lucide-react";
+import { Save, ArrowLeft, AlertCircle } from "lucide-react";
 
 interface ContractFormProps {
   contractToEdit: ContractItem | null;
@@ -32,9 +32,13 @@ export const ContractForm: React.FC<ContractFormProps> = ({
   const [contractNumber, setContractNumber] = useState("");
   const [contractStartDate, setContractStartDate] = useState("");
   const [contractEndDate, setContractEndDate] = useState("");
-  const [currentSalary, setCurrentSalary] = useState<number>(0);
-  const [proposedSalary, setProposedSalary] = useState<number>(0);
-  const [finalSalary, setFinalSalary] = useState<number>(0);
+  
+  // ARC 3.1 Non-nominal states
+  const [compensationReviewNeeded, setCompensationReviewNeeded] = useState(false);
+  const [salaryNegotiationStatus, setSalaryNegotiationStatus] = useState<SalaryNegotiationStatus>(SalaryNegotiationStatus.NoNegotiation);
+  const [negotiationNotes, setNegotiationNotes] = useState("");
+  const [payrollFollowUpNotes, setPayrollFollowUpNotes] = useState("");
+
   const [userRecommendation, setUserRecommendation] = useState<UserRecommendation>(UserRecommendation.None);
   const [directorApproval, setDirectorApproval] = useState<ApprovalStatus>(ApprovalStatus.None);
   const [headHRReview, setHeadHRReview] = useState<ApprovalStatus>(ApprovalStatus.None);
@@ -43,7 +47,6 @@ export const ContractForm: React.FC<ContractFormProps> = ({
   const [signedDeadline, setSignedDeadline] = useState("");
   const [signedReceivedDate, setSignedReceivedDate] = useState("");
   const [contractStatus, setContractStatus] = useState<ContractStatus>(ContractStatus.Active);
-  const [salaryNegotiationStatus, setSalaryNegotiationStatus] = useState<SalaryNegotiationStatus>(SalaryNegotiationStatus.NoNegotiation);
   const [hrPic, setHrPic] = useState("Siti Rahma");
   const [notes, setNotes] = useState("");
 
@@ -61,9 +64,13 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setContractNumber(contractToEdit.contractNumber);
       setContractStartDate(contractToEdit.contractStartDate);
       setContractEndDate(contractToEdit.contractEndDate);
-      setCurrentSalary(contractToEdit.currentSalary);
-      setProposedSalary(contractToEdit.proposedSalary);
-      setFinalSalary(contractToEdit.finalSalary);
+      
+      // Load ARC 3.1 safe fields
+      setCompensationReviewNeeded(!!contractToEdit.compensationReviewNeeded);
+      setSalaryNegotiationStatus(contractToEdit.salaryNegotiationStatus || SalaryNegotiationStatus.NoNegotiation);
+      setNegotiationNotes(contractToEdit.negotiationNotes || "");
+      setPayrollFollowUpNotes(contractToEdit.payrollFollowUpNotes || "");
+
       setUserRecommendation(contractToEdit.userRecommendation);
       setDirectorApproval(contractToEdit.directorApproval);
       setHeadHRReview(contractToEdit.headHRReview);
@@ -72,7 +79,6 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setSignedDeadline(contractToEdit.signedDeadline);
       setSignedReceivedDate(contractToEdit.signedReceivedDate);
       setContractStatus(contractToEdit.contractStatus);
-      setSalaryNegotiationStatus(contractToEdit.salaryNegotiationStatus);
       setHrPic(contractToEdit.hrPic);
       setNotes(contractToEdit.notes);
     } else {
@@ -87,9 +93,13 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setContractNumber(`CN-${randomIdNum}/HRD-PKWT/${new Date().getFullYear()}`);
       setContractStartDate("");
       setContractEndDate("");
-      setCurrentSalary(0);
-      setProposedSalary(0);
-      setFinalSalary(0);
+      
+      // Reset ARC 3.1 fields
+      setCompensationReviewNeeded(false);
+      setSalaryNegotiationStatus(SalaryNegotiationStatus.NoNegotiation);
+      setNegotiationNotes("");
+      setPayrollFollowUpNotes("");
+
       setUserRecommendation(UserRecommendation.None);
       setDirectorApproval(ApprovalStatus.None);
       setHeadHRReview(ApprovalStatus.None);
@@ -98,7 +108,6 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setSignedDeadline("");
       setSignedReceivedDate("");
       setContractStatus(ContractStatus.NeedReview);
-      setSalaryNegotiationStatus(SalaryNegotiationStatus.NoNegotiation);
       setHrPic(HR_PICS[1] || "Siti Rahma");
       setNotes("");
     }
@@ -117,7 +126,6 @@ export const ContractForm: React.FC<ContractFormProps> = ({
     if (!contractType.trim()) newErrors.contractType = "Contract Type is required";
     if (!contractStartDate) newErrors.contractStartDate = "Contract Start Date is required";
     if (!contractEndDate) newErrors.contractEndDate = "Contract End Date is required";
-    if (currentSalary <= 0) newErrors.currentSalary = "Current Salary must be greater than 0";
     if (!hrPic.trim() || hrPic === "All HR PICs") newErrors.hrPic = "Valid HR PIC is required";
     if (!contractStatus.trim()) newErrors.contractStatus = "Contract Status is required";
 
@@ -140,9 +148,13 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       contractStartDate,
       contractEndDate,
       daysRemaining: contractToEdit ? contractToEdit.daysRemaining : 0, // will be computed in App state on save
-      currentSalary,
-      proposedSalary,
-      finalSalary,
+      
+      // ARC 3.1 fields
+      compensationReviewNeeded,
+      negotiationStatus: salaryNegotiationStatus,
+      negotiationNotes,
+      payrollFollowUpNotes,
+
       userRecommendation,
       directorApproval,
       headHRReview,
@@ -176,7 +188,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
             {isEditMode ? `Edit Contract - ${contractToEdit?.employeeName}` : "Register New Employee Contract"}
           </h2>
           <p className="text-xs text-slate-500 mt-0.5">
-            {isEditMode ? "Modify contract status, approval process, or salary negotiations." : "Input new recruit contract detail. Days remaining and SLAs will auto-calculate."}
+            {isEditMode ? "Modify contract status, approval process, or compensation reviews." : "Input new recruit contract detail. Days remaining and SLAs will auto-calculate."}
           </p>
         </div>
       </div>
@@ -411,79 +423,71 @@ export const ContractForm: React.FC<ContractFormProps> = ({
           </div>
         </div>
 
-        {/* Section C: Salary, Negotiation, and Recommendation */}
+        {/* Section C: Non-nominal Compensation & Negotiation Tracker */}
         <div className="space-y-4">
           <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono border-b border-indigo-50 pb-2">
-            C. Salary Controller & Negotiations
+            C. Negotiation & Compensation Review (Non-Nominal)
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Current Monthly Salary (IDR) <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-semibold">Rp</span>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              
+              <div className="flex items-center gap-3 p-4 bg-slate-50 border border-slate-150 rounded-xl">
                 <input
-                  type="number"
-                  value={currentSalary || ""}
-                  placeholder="0"
-                  onChange={(e) => setCurrentSalary(Number(e.target.value))}
-                  className={`w-full pl-9 pr-4 py-2.5 border rounded-lg text-sm font-mono transition outline-none ${
-                    errors.currentSalary ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
-                  }`}
+                  type="checkbox"
+                  id="compensationReviewNeeded"
+                  checked={compensationReviewNeeded}
+                  onChange={(e) => setCompensationReviewNeeded(e.target.checked)}
+                  className="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                />
+                <label htmlFor="compensationReviewNeeded" className="text-xs font-bold text-slate-700 uppercase tracking-wider cursor-pointer">
+                  Compensation Review Needed <span className="text-[10px] text-slate-400 font-normal block font-sans">Toggle if employee requested salary or compensation updates</span>
+                </label>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Negotiation Status
+                </label>
+                <select
+                  value={salaryNegotiationStatus}
+                  onChange={(e) => setSalaryNegotiationStatus(e.target.value as SalaryNegotiationStatus)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                >
+                  {Object.values(SalaryNegotiationStatus).map(val => (
+                    <option key={val} value={val}>{val}</option>
+                  ))}
+                </select>
+              </div>
+
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Negotiation Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={negotiationNotes}
+                  placeholder="Record employee request details, date discussed, etc. (Strictly no nominal amount)"
+                  onChange={(e) => setNegotiationNotes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
                 />
               </div>
-              {errors.currentSalary && <p className="text-xs text-rose-600 mt-1">{errors.currentSalary}</p>}
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Proposed Salary (IDR)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-semibold">Rp</span>
-                <input
-                  type="number"
-                  value={proposedSalary || ""}
-                  placeholder="Optional"
-                  onChange={(e) => setProposedSalary(Number(e.target.value))}
-                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Payroll/Management Follow-up Notes
+                </label>
+                <textarea
+                  rows={3}
+                  value={payrollFollowUpNotes}
+                  placeholder="Record instructions or notes for Payroll / Management handling outside this system."
+                  onChange={(e) => setPayrollFollowUpNotes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
                 />
               </div>
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Final Agreed Salary (IDR)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-semibold">Rp</span>
-                <input
-                  type="number"
-                  value={finalSalary || ""}
-                  placeholder="Optional"
-                  onChange={(e) => setFinalSalary(Number(e.target.value))}
-                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Salary Negotiation Status
-              </label>
-              <select
-                value={salaryNegotiationStatus}
-                onChange={(e) => setSalaryNegotiationStatus(e.target.value as SalaryNegotiationStatus)}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
-              >
-                {Object.values(SalaryNegotiationStatus).map(val => (
-                  <option key={val} value={val}>{val}</option>
-                ))}
-              </select>
-            </div>
-
           </div>
         </div>
 
@@ -566,7 +570,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
             <textarea
               rows={4}
               value={notes}
-              placeholder="Enter special salary negotiations records, timeline feedback, manager discussions, or delay issues..."
+              placeholder="Enter general timeline feedback, manager discussions, or delay issues..."
               onChange={(e) => setNotes(e.target.value)}
               className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
             />
