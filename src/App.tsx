@@ -16,6 +16,7 @@ import { ContractForm } from "./components/ContractForm";
 import { ProbationForm } from "./components/ProbationForm";
 import { SettingsView } from "./components/SettingsView";
 import { ImportExcelView } from "./components/ImportExcelView";
+import { EmailCenterView } from "./components/EmailCenterView";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -28,13 +29,14 @@ import {
   User,
   ShieldCheck,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Mail
 } from "lucide-react";
 
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "contracts" | "probation" | "settings" | "add-contract" | "edit-contract" | "add-probation" | "edit-probation" | "import-excel"
+    "dashboard" | "contracts" | "probation" | "settings" | "add-contract" | "edit-contract" | "add-probation" | "edit-probation" | "import-excel" | "email-center"
   >("dashboard");
 
   // Core Data States
@@ -390,6 +392,21 @@ export default function App() {
                 Import Excel
               </div>
             </button>
+
+            <button
+              id="sidebar-tab-email-center"
+              onClick={() => setActiveTab("email-center")}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition cursor-pointer ${
+                activeTab === "email-center"
+                  ? "bg-slate-800 text-white font-semibold border-l-4 border-l-indigo-500"
+                  : "hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Mail className="h-4.5 w-4.5 text-indigo-400" />
+                Email Center
+              </div>
+            </button>
           </nav>
         </div>
 
@@ -545,6 +562,16 @@ export default function App() {
               simulationDate={simulationDate}
               onImportComplete={handleImportComplete}
               onCancel={() => setActiveTab("dashboard")}
+            />
+          )}
+
+          {activeTab === "email-center" && (
+            <EmailCenterView
+              contracts={contracts}
+              probations={probations}
+              simulationDate={simulationDate}
+              onUpdateContracts={(updated) => syncWithStorage(updated, probations, simulationDate)}
+              onUpdateProbations={(updated) => syncWithStorage(contracts, updated, simulationDate)}
             />
           )}
         </main>

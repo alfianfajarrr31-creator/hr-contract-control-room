@@ -91,6 +91,13 @@ export interface ContractItem {
   hrPic: string;
   notes: string;
   priority: PriorityType; // Auto calculated
+  // ARC 3 Optional Email Sent Dates
+  userReviewEmailSentDate?: string;
+  directorApprovalEmailSentDate?: string;
+  headHrReviewEmailSentDate?: string;
+  employeeContractEmailSentDate?: string;
+  signedFollowUpEmailSentDate?: string;
+  escalationEmailSentDate?: string;
 }
 
 export interface ProbationItem {
@@ -112,6 +119,10 @@ export interface ProbationItem {
   notes: string;
   probationStatus: ProbationStatus; // Added to map status
   priority: PriorityType; // Auto calculated
+  // ARC 3 Optional Email Sent Dates
+  probationReviewEmailSentDate?: string;
+  probationApprovalEmailSentDate?: string;
+  escalationEmailSentDate?: string;
 }
 
 // Master / Helper functions for auto calculating Priority and Days Remaining
