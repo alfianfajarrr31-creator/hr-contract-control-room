@@ -440,7 +440,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                   className="h-4 w-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
                 />
                 <label htmlFor="compensationReviewNeeded" className="text-xs font-bold text-slate-700 uppercase tracking-wider cursor-pointer">
-                  Compensation Review Needed <span className="text-[10px] text-slate-400 font-normal block font-sans">Toggle if employee requested salary or compensation updates</span>
+                  Compensation Review Needed <span className="text-[10px] text-slate-400 font-normal block font-sans">Toggle if employee requested compensation updates</span>
                 </label>
               </div>
 

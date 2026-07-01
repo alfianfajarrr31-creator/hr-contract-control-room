@@ -92,13 +92,13 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
-        {/* Salary Negotiation Dropdowns */}
+        {/* Compensation Review Dropdowns */}
         <div className="bg-white border border-slate-150 rounded-xl p-5 shadow-xs">
           <h3 className="font-semibold text-slate-900 font-display flex items-center gap-2 border-b border-slate-100 pb-3 mb-3">
             <TrendingUp className="h-4 w-4 text-teal-600" />
-            Salary Negotiation Matrix
+            Compensation Review Matrix
           </h3>
-          <p className="text-xs text-slate-500 mb-4">Standard negotiation status triggers for budget approvals.</p>
+          <p className="text-xs text-slate-500 mb-4">Standard compensation review and negotiation status triggers.</p>
           <div className="flex flex-wrap gap-2">
             {Object.values(SalaryNegotiationStatus).map(val => (
               <span key={val} className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-teal-50 text-teal-800 border border-teal-100 font-mono">

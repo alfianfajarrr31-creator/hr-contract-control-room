@@ -24,7 +24,7 @@ export const INITIAL_CONTRACTS: ContractItem[] = [
     daysRemaining: 2,
     compensationReviewNeeded: true,
     negotiationStatus: SalaryNegotiationStatus.Resolved,
-    negotiationNotes: "Nego gaji sudah resolved. Nominal dikelola di luar sistem.",
+    negotiationNotes: "Compensation review sudah resolved. Nominal dikelola di luar sistem.",
     payrollFollowUpNotes: "",
     userRecommendation: UserRecommendation.Extend,
     directorApproval: ApprovalStatus.Approved,
@@ -36,7 +36,7 @@ export const INITIAL_CONTRACTS: ContractItem[] = [
     contractStatus: ContractStatus.Critical,
     salaryNegotiationStatus: SalaryNegotiationStatus.Resolved,
     hrPic: "Siti Rahma",
-    notes: "Tinggal menunggu tanda tangan kembali dari karyawan. Nego gaji sudah deal di angka 17.5 juta.",
+    notes: "Tinggal menunggu tanda tangan kembali dari karyawan. Compensation review sudah resolved by Management/Payroll. Detail nominal dikelola di luar sistem.",
     priority: "Critical"
   },
   {
@@ -123,7 +123,7 @@ export const INITIAL_CONTRACTS: ContractItem[] = [
     contractStatus: ContractStatus.ContractSent,
     salaryNegotiationStatus: SalaryNegotiationStatus.Resolved,
     hrPic: "Rian Hidayat",
-    notes: "Nego alot dari 9 juta ke 8.5 juta disetujui. Kontrak fisik sudah dikirim.",
+    notes: "Negosiasi kompensasi disetujui setelah diskusi intensif. Kontrak fisik sudah dikirim.",
     priority: "High"
   },
   {
@@ -152,7 +152,7 @@ export const INITIAL_CONTRACTS: ContractItem[] = [
     contractStatus: ContractStatus.WaitingHeadHRReview,
     salaryNegotiationStatus: SalaryNegotiationStatus.UnderDiscussion,
     hrPic: "Siti Rahma",
-    notes: "User merekomendasikan extend dan naik gaji 11 juta, namun Head HR masih mereview kelayakan budget departemen.",
+    notes: "User merekomendasikan extend dengan penyesuaian kompensasi, namun Head HR masih mereview kelayakan budget departemen.",
     priority: "High"
   },
   {
@@ -198,7 +198,7 @@ export const INITIAL_CONTRACTS: ContractItem[] = [
     daysRemaining: 25,
     compensationReviewNeeded: true,
     negotiationStatus: SalaryNegotiationStatus.WaitingManagement,
-    negotiationNotes: "Menunggu approval dari Direktur Operasional untuk kenaikan gaji AE berprestasi.",
+    negotiationNotes: "Menunggu approval dari Direktur Operasional untuk compensation adjustment AE berprestasi. Nominal tidak dicatat di sistem ini.",
     payrollFollowUpNotes: "",
     userRecommendation: UserRecommendation.Extend,
     directorApproval: ApprovalStatus.Pending,
@@ -210,7 +210,7 @@ export const INITIAL_CONTRACTS: ContractItem[] = [
     contractStatus: ContractStatus.WaitingDirectorApproval,
     salaryNegotiationStatus: SalaryNegotiationStatus.WaitingManagement,
     hrPic: "Siti Rahma",
-    notes: "Menunggu approval dari Direktur Operasional untuk kenaikan gaji AE berprestasi.",
+    notes: "Menunggu approval dari Direktur Operasional untuk compensation adjustment AE berprestasi. Nominal tidak dicatat di sistem ini.",
     priority: "High"
   },
   {

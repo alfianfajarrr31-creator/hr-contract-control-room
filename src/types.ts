@@ -3,7 +3,7 @@ export enum ContractStatus {
   NeedReview = "Need Review",
   WaitingUserReview = "Waiting User Review",
   WaitingDirectorApproval = "Waiting Director Approval",
-  SalaryNegotiation = "Salary Negotiation",
+  SalaryNegotiation = "Compensation Review",
   ContractDrafting = "Contract Drafting",
   WaitingHeadHRReview = "Waiting Head HR Review",
   ContractSent = "Contract Sent",

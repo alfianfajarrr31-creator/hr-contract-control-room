@@ -259,7 +259,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <div>
               <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Compensation Review</p>
               <h3 className="text-2xl font-bold font-mono text-teal-700 mt-1">{compensationReviews}</h3>
-              <p className="text-xs text-slate-400 mt-0.5">Active reviews & nego</p>
+              <p className="text-xs text-slate-400 mt-0.5">Active reviews & negotiations</p>
             </div>
           </div>
 

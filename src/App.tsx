@@ -243,7 +243,7 @@ export default function App() {
       "Days Remaining", "Compensation Review Needed", "Negotiation Status", "Negotiation Notes", "Payroll Follow-Up Notes",
       "User Recommendation", "Director Approval", "Head HR Review",
       "Contract Draft Date", "Contract Sent Date", "Signed Deadline", "Signed Received Date",
-      "Contract Status", "Salary Negotiation Status", "HR PIC", "Priority", "Notes"
+      "Contract Status", "Compensation Review Status", "HR PIC", "Priority", "Notes"
     ];
 
     const rows = items.map(c => [

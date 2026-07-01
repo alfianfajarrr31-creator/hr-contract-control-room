@@ -432,7 +432,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                               <div className="space-y-2 border-r border-slate-100 pr-4">
                                 <h4 className="font-semibold text-slate-800 font-display flex items-center gap-1.5 border-b border-slate-100 pb-1.5 mb-2 uppercase text-xs tracking-wider">
                                   <HelpCircle className="h-3.5 w-3.5 text-indigo-500" />
-                                  Compensation & Nego
+                                  Compensation Review
                                 </h4>
                                 <div className="flex justify-between items-center">
                                   <span className="text-slate-400 text-xs">Review Needed:</span>
@@ -445,7 +445,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                                   </span>
                                 </div>
                                 <div className="pt-1">
-                                  <span className="text-slate-400 text-xs block mb-1">Nego Status:</span>
+                                  <span className="text-slate-400 text-xs block mb-1">Negotiation Status:</span>
                                   <span className={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${
                                     c.salaryNegotiationStatus === SalaryNegotiationStatus.Resolved
                                       ? "bg-emerald-50 text-emerald-700 border-emerald-100"
@@ -458,7 +458,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                                 </div>
                                 {c.negotiationNotes && (
                                   <div className="pt-1.5">
-                                    <span className="text-slate-400 text-xs block">Nego Notes:</span>
+                                    <span className="text-slate-400 text-xs block">Negotiation Notes:</span>
                                     <p className="text-[11px] text-slate-600 line-clamp-2 italic">{c.negotiationNotes}</p>
                                   </div>
                                 )}

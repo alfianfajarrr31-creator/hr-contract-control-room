@@ -66,7 +66,7 @@ const CONTRACT_FIELDS = [
   { key: "signedDeadline", label: "Signed Deadline", required: false, synonyms: ["signed deadline", "deadline tanda tangan", "deadline ttd"] },
   { key: "signedReceivedDate", label: "Signed Received Date", required: false, synonyms: ["signed received date", "tgl ttd diterima", "tanggal ttd"] },
   { key: "contractStatus", label: "Contract Status", required: false, synonyms: ["contract status", "status kontrak", "status"] },
-  { key: "salaryNegotiationStatus", label: "Salary Negotiation Status", required: false, synonyms: ["salary negotiation status", "status nego", "nego gaji"] },
+  { key: "salaryNegotiationStatus", label: "Compensation Review Status", required: false, synonyms: ["salary negotiation status", "status nego", "nego gaji"] },
   { key: "hrPic", label: "HR PIC", required: false, synonyms: ["hr pic", "pic hr", "pic", "admin hr"] },
   { key: "notes", label: "Notes", required: false, synonyms: ["notes", "keterangan", "catatan", "keterangan tambahan"] },
 ];
