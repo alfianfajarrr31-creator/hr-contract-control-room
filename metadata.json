@@ -1,0 +1,6 @@
+{
+  "name": "HR Contract Control Room",
+  "description": "Control room for managing employee contracts, probation deadlines, SLA workflows, salary negotiations, approvals, and contract signatures.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

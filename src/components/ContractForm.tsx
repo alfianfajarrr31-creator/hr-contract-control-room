@@ -1,0 +1,598 @@
+import React, { useState, useEffect } from "react";
+import { 
+  ContractItem, 
+  ContractStatus, 
+  UserRecommendation, 
+  ApprovalStatus, 
+  SalaryNegotiationStatus 
+} from "../types";
+import { DEPARTMENTS, HR_PICS } from "../seedData";
+import { Save, ArrowLeft, AlertCircle, HelpCircle } from "lucide-react";
+
+interface ContractFormProps {
+  contractToEdit: ContractItem | null;
+  onSave: (contract: ContractItem) => void;
+  onCancel: () => void;
+}
+
+export const ContractForm: React.FC<ContractFormProps> = ({
+  contractToEdit,
+  onSave,
+  onCancel
+}) => {
+  const isEditMode = !!contractToEdit;
+
+  // Form State
+  const [employeeId, setEmployeeId] = useState("");
+  const [employeeName, setEmployeeName] = useState("");
+  const [department, setDepartment] = useState("Engineering");
+  const [position, setPosition] = useState("");
+  const [directManager, setDirectManager] = useState("");
+  const [contractType, setContractType] = useState("PKWT I");
+  const [contractNumber, setContractNumber] = useState("");
+  const [contractStartDate, setContractStartDate] = useState("");
+  const [contractEndDate, setContractEndDate] = useState("");
+  const [currentSalary, setCurrentSalary] = useState<number>(0);
+  const [proposedSalary, setProposedSalary] = useState<number>(0);
+  const [finalSalary, setFinalSalary] = useState<number>(0);
+  const [userRecommendation, setUserRecommendation] = useState<UserRecommendation>(UserRecommendation.None);
+  const [directorApproval, setDirectorApproval] = useState<ApprovalStatus>(ApprovalStatus.None);
+  const [headHRReview, setHeadHRReview] = useState<ApprovalStatus>(ApprovalStatus.None);
+  const [contractDraftDate, setContractDraftDate] = useState("");
+  const [contractSentDate, setContractSentDate] = useState("");
+  const [signedDeadline, setSignedDeadline] = useState("");
+  const [signedReceivedDate, setSignedReceivedDate] = useState("");
+  const [contractStatus, setContractStatus] = useState<ContractStatus>(ContractStatus.Active);
+  const [salaryNegotiationStatus, setSalaryNegotiationStatus] = useState<SalaryNegotiationStatus>(SalaryNegotiationStatus.NoNegotiation);
+  const [hrPic, setHrPic] = useState("Siti Rahma");
+  const [notes, setNotes] = useState("");
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load editing item if applicable
+  useEffect(() => {
+    if (contractToEdit) {
+      setEmployeeId(contractToEdit.employeeId);
+      setEmployeeName(contractToEdit.employeeName);
+      setDepartment(contractToEdit.department);
+      setPosition(contractToEdit.position);
+      setDirectManager(contractToEdit.directManager);
+      setContractType(contractToEdit.contractType);
+      setContractNumber(contractToEdit.contractNumber);
+      setContractStartDate(contractToEdit.contractStartDate);
+      setContractEndDate(contractToEdit.contractEndDate);
+      setCurrentSalary(contractToEdit.currentSalary);
+      setProposedSalary(contractToEdit.proposedSalary);
+      setFinalSalary(contractToEdit.finalSalary);
+      setUserRecommendation(contractToEdit.userRecommendation);
+      setDirectorApproval(contractToEdit.directorApproval);
+      setHeadHRReview(contractToEdit.headHRReview);
+      setContractDraftDate(contractToEdit.contractDraftDate);
+      setContractSentDate(contractToEdit.contractSentDate);
+      setSignedDeadline(contractToEdit.signedDeadline);
+      setSignedReceivedDate(contractToEdit.signedReceivedDate);
+      setContractStatus(contractToEdit.contractStatus);
+      setSalaryNegotiationStatus(contractToEdit.salaryNegotiationStatus);
+      setHrPic(contractToEdit.hrPic);
+      setNotes(contractToEdit.notes);
+    } else {
+      // Generate some default dummy data
+      const randomIdNum = Math.floor(100 + Math.random() * 900);
+      setEmployeeId(`EMP-${randomIdNum}`);
+      setEmployeeName("");
+      setDepartment(DEPARTMENTS[1] || "Engineering");
+      setPosition("");
+      setDirectManager("");
+      setContractType("PKWT I");
+      setContractNumber(`CN-${randomIdNum}/HRD-PKWT/${new Date().getFullYear()}`);
+      setContractStartDate("");
+      setContractEndDate("");
+      setCurrentSalary(0);
+      setProposedSalary(0);
+      setFinalSalary(0);
+      setUserRecommendation(UserRecommendation.None);
+      setDirectorApproval(ApprovalStatus.None);
+      setHeadHRReview(ApprovalStatus.None);
+      setContractDraftDate("");
+      setContractSentDate("");
+      setSignedDeadline("");
+      setSignedReceivedDate("");
+      setContractStatus(ContractStatus.NeedReview);
+      setSalaryNegotiationStatus(SalaryNegotiationStatus.NoNegotiation);
+      setHrPic(HR_PICS[1] || "Siti Rahma");
+      setNotes("");
+    }
+    setErrors({});
+  }, [contractToEdit]);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newErrors: Record<string, string> = {};
+
+    // Validate mandatory fields
+    if (!employeeName.trim()) newErrors.employeeName = "Employee Name is required";
+    if (!department.trim()) newErrors.department = "Department is required";
+    if (!position.trim()) newErrors.position = "Position is required";
+    if (!directManager.trim()) newErrors.directManager = "Direct Manager is required";
+    if (!contractType.trim()) newErrors.contractType = "Contract Type is required";
+    if (!contractStartDate) newErrors.contractStartDate = "Contract Start Date is required";
+    if (!contractEndDate) newErrors.contractEndDate = "Contract End Date is required";
+    if (currentSalary <= 0) newErrors.currentSalary = "Current Salary must be greater than 0";
+    if (!hrPic.trim() || hrPic === "All HR PICs") newErrors.hrPic = "Valid HR PIC is required";
+    if (!contractStatus.trim()) newErrors.contractStatus = "Contract Status is required";
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      // scroll to top of form
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    const payload: ContractItem = {
+      id: isEditMode ? contractToEdit!.id : employeeId,
+      employeeId,
+      employeeName,
+      department,
+      position,
+      directManager,
+      contractType,
+      contractNumber: contractNumber || `CN-NEW/HRD/${new Date().getFullYear()}`,
+      contractStartDate,
+      contractEndDate,
+      daysRemaining: contractToEdit ? contractToEdit.daysRemaining : 0, // will be computed in App state on save
+      currentSalary,
+      proposedSalary,
+      finalSalary,
+      userRecommendation,
+      directorApproval,
+      headHRReview,
+      contractDraftDate,
+      contractSentDate,
+      signedDeadline,
+      signedReceivedDate,
+      contractStatus,
+      salaryNegotiationStatus,
+      hrPic,
+      notes,
+      priority: contractToEdit ? contractToEdit.priority : "Low" // will be computed in App state on save
+    };
+
+    onSave(payload);
+  };
+
+  return (
+    <div className="bg-white border border-slate-150 rounded-xl shadow-xs overflow-hidden animate-fade-in" id="contract-form-container">
+      {/* Form Header */}
+      <div className="bg-slate-50 border-b border-slate-100 px-6 py-5 flex items-center gap-4">
+        <button
+          type="button"
+          onClick={onCancel}
+          className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-200 rounded-lg transition cursor-pointer"
+        >
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 font-display">
+            {isEditMode ? `Edit Contract - ${contractToEdit?.employeeName}` : "Register New Employee Contract"}
+          </h2>
+          <p className="text-xs text-slate-500 mt-0.5">
+            {isEditMode ? "Modify contract status, approval process, or salary negotiations." : "Input new recruit contract detail. Days remaining and SLAs will auto-calculate."}
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit} className="p-6 space-y-8" id="contract-form-tag">
+        {/* Error message block */}
+        {Object.keys(errors).length > 0 && (
+          <div className="bg-rose-50 border-l-4 border-rose-500 p-4 rounded-r-lg flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-rose-500 shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-rose-900">Missing Mandatory Fields</p>
+              <p className="text-xs text-rose-700 mt-0.5">Please check and complete the highlighted inputs below.</p>
+            </div>
+          </div>
+        )}
+
+        {/* Section A: Employee & Core Placement */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono border-b border-indigo-50 pb-2">
+            A. Employee Profile & Placement
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Employee ID <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={employeeId}
+                onChange={(e) => setEmployeeId(e.target.value)}
+                disabled={isEditMode}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-slate-50 disabled:text-slate-400 font-mono focus:ring-2 focus:ring-indigo-500/20 transition outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Employee Name <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={employeeName}
+                placeholder="e.g. John Doe"
+                onChange={(e) => setEmployeeName(e.target.value)}
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm transition outline-none ${
+                  errors.employeeName ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                }`}
+              />
+              {errors.employeeName && <p className="text-xs text-rose-600 mt-1">{errors.employeeName}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Department <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              >
+                {DEPARTMENTS.filter(d => d !== "All Departments").map(dept => (
+                  <option key={dept} value={dept}>{dept}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Job Position <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={position}
+                placeholder="e.g. Senior Recruiter"
+                onChange={(e) => setPosition(e.target.value)}
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm transition outline-none ${
+                  errors.position ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                }`}
+              />
+              {errors.position && <p className="text-xs text-rose-600 mt-1">{errors.position}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Direct Manager <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={directManager}
+                placeholder="e.g. Budi Santoso"
+                onChange={(e) => setDirectManager(e.target.value)}
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm transition outline-none ${
+                  errors.directManager ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                }`}
+              />
+              {errors.directManager && <p className="text-xs text-rose-600 mt-1">{errors.directManager}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                HR PIC <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={hrPic}
+                onChange={(e) => setHrPic(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              >
+                {HR_PICS.filter(p => p !== "All HR PICs").map(pic => (
+                  <option key={pic} value={pic}>{pic}</option>
+                ))}
+              </select>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Section B: Contract Specifications & Dates */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono border-b border-indigo-50 pb-2">
+            B. Contract Details & Key Dates
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contract Type <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={contractType}
+                placeholder="e.g. PKWT I or PKWT II"
+                onChange={(e) => setContractType(e.target.value)}
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm transition outline-none ${
+                  errors.contractType ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                }`}
+              />
+              {errors.contractType && <p className="text-xs text-rose-600 mt-1">{errors.contractType}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contract Number
+              </label>
+              <input
+                type="text"
+                value={contractNumber}
+                placeholder="e.g. 102/HRD-PKWT/VII/2026"
+                onChange={(e) => setContractNumber(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contract Start Date <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={contractStartDate}
+                onChange={(e) => setContractStartDate(e.target.value)}
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm font-mono transition outline-none bg-white ${
+                  errors.contractStartDate ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                }`}
+              />
+              {errors.contractStartDate && <p className="text-xs text-rose-600 mt-1">{errors.contractStartDate}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contract End (Expired) Date <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                value={contractEndDate}
+                onChange={(e) => setContractEndDate(e.target.value)}
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm font-mono transition outline-none bg-white ${
+                  errors.contractEndDate ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                }`}
+              />
+              {errors.contractEndDate && <p className="text-xs text-rose-600 mt-1">{errors.contractEndDate}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Draft Date
+              </label>
+              <input
+                type="date"
+                value={contractDraftDate}
+                onChange={(e) => setContractDraftDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Sent to Employee Date
+              </label>
+              <input
+                type="date"
+                value={contractSentDate}
+                onChange={(e) => setContractSentDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Signed Deadline Date
+              </label>
+              <input
+                type="date"
+                value={signedDeadline}
+                onChange={(e) => setSignedDeadline(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Signed Received Date
+              </label>
+              <input
+                type="date"
+                value={signedReceivedDate}
+                onChange={(e) => setSignedReceivedDate(e.target.value)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+              />
+            </div>
+
+          </div>
+        </div>
+
+        {/* Section C: Salary, Negotiation, and Recommendation */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono border-b border-indigo-50 pb-2">
+            C. Salary Controller & Negotiations
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Current Monthly Salary (IDR) <span className="text-rose-500">*</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-semibold">Rp</span>
+                <input
+                  type="number"
+                  value={currentSalary || ""}
+                  placeholder="0"
+                  onChange={(e) => setCurrentSalary(Number(e.target.value))}
+                  className={`w-full pl-9 pr-4 py-2.5 border rounded-lg text-sm font-mono transition outline-none ${
+                    errors.currentSalary ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                  }`}
+                />
+              </div>
+              {errors.currentSalary && <p className="text-xs text-rose-600 mt-1">{errors.currentSalary}</p>}
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Proposed Salary (IDR)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-semibold">Rp</span>
+                <input
+                  type="number"
+                  value={proposedSalary || ""}
+                  placeholder="Optional"
+                  onChange={(e) => setProposedSalary(Number(e.target.value))}
+                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Final Agreed Salary (IDR)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-slate-400 text-sm font-semibold">Rp</span>
+                <input
+                  type="number"
+                  value={finalSalary || ""}
+                  placeholder="Optional"
+                  onChange={(e) => setFinalSalary(Number(e.target.value))}
+                  className="w-full pl-9 pr-4 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Salary Negotiation Status
+              </label>
+              <select
+                value={salaryNegotiationStatus}
+                onChange={(e) => setSalaryNegotiationStatus(e.target.value as SalaryNegotiationStatus)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              >
+                {Object.values(SalaryNegotiationStatus).map(val => (
+                  <option key={val} value={val}>{val}</option>
+                ))}
+              </select>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Section D: Approvals & Workflow Status */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono border-b border-indigo-50 pb-2">
+            D. Approval Tracking & Workflow Status
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                User / Manager Recommendation
+              </label>
+              <select
+                value={userRecommendation}
+                onChange={(e) => setUserRecommendation(e.target.value as UserRecommendation)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              >
+                {Object.values(UserRecommendation).map(val => (
+                  <option key={val} value={val}>{val}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Director Sign-Off Approval
+              </label>
+              <select
+                value={directorApproval}
+                onChange={(e) => setDirectorApproval(e.target.value as ApprovalStatus)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              >
+                {Object.values(ApprovalStatus).map(val => (
+                  <option key={val} value={val}>{val}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Head HR Review / Approval
+              </label>
+              <select
+                value={headHRReview}
+                onChange={(e) => setHeadHRReview(e.target.value as ApprovalStatus)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+              >
+                {Object.values(ApprovalStatus).map(val => (
+                  <option key={val} value={val}>{val}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                Contract Workflow Status <span className="text-rose-500">*</span>
+              </label>
+              <select
+                value={contractStatus}
+                onChange={(e) => setContractStatus(e.target.value as ContractStatus)}
+                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none text-indigo-700 font-semibold"
+              >
+                {Object.values(ContractStatus).map(val => (
+                  <option key={val} value={val}>{val}</option>
+                ))}
+              </select>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Section E: Operational HR Notes */}
+        <div className="space-y-4">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-indigo-600 font-mono border-b border-indigo-50 pb-2">
+            E. Operational Notes
+          </h3>
+          <div>
+            <textarea
+              rows={4}
+              value={notes}
+              placeholder="Enter special salary negotiations records, timeline feedback, manager discussions, or delay issues..."
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-end gap-3 pt-6 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-4 py-2.5 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-lg text-sm font-medium transition cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            id="save-contract-submit-btn"
+            className="inline-flex items-center gap-2 px-5 py-2.5 text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg text-sm font-medium transition shadow-md cursor-pointer"
+          >
+            <Save className="h-4 w-4" />
+            {isEditMode ? "Save Changes" : "Create Contract"}
+          </button>
+        </div>
+
+      </form>
+    </div>
+  );
+};
