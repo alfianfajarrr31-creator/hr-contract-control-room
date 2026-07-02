@@ -113,7 +113,8 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
   
   // Cleaned and validated results
   const [processedRows, setProcessedRows] = useState<any[]>([]);
-  const [skipDuplicates, setSkipDuplicates] = useState<boolean>(true);
+  type DuplicateMode = 'skip' | 'replace' | 'update' | 'new';
+  const [duplicateMode, setDuplicateMode] = useState<DuplicateMode>('skip');
   
   // Drag & drop highlight
   const [dragOver, setDragOver] = useState<boolean>(false);
@@ -348,18 +349,16 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
 
       // 3. Check for Duplicate
       let isDuplicate = false;
-      if (skipDuplicates) {
-        if (importType === 'contract') {
-          isDuplicate = existingContracts.some(
-            c => c.employeeName.toLowerCase() === cleanedItem.employeeName.toLowerCase() && 
-                 c.contractEndDate === cleanedItem.contractEndDate
-          );
-        } else {
-          isDuplicate = existingProbations.some(
-            p => p.employeeName.toLowerCase() === cleanedItem.employeeName.toLowerCase() && 
-                 p.probationEndDate === cleanedItem.probationEndDate
-          );
-        }
+      if (importType === 'contract') {
+        isDuplicate = existingContracts.some(
+          c => c.employeeName.toLowerCase() === cleanedItem.employeeName.toLowerCase() && 
+               c.contractEndDate === cleanedItem.contractEndDate
+        );
+      } else {
+        isDuplicate = existingProbations.some(
+          p => p.employeeName.toLowerCase() === cleanedItem.employeeName.toLowerCase() && 
+               p.probationEndDate === cleanedItem.probationEndDate
+        );
       }
 
       return {
@@ -415,25 +414,203 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
     document.body.removeChild(link);
   };
 
+  // Helper to update Contract fields if present in raw Excel row
+  const updateContractFields = (existing: ContractItem, raw: any, cleaned: ContractItem): ContractItem => {
+    const updated = { ...existing };
+    const hasRawValue = (key: string) => {
+      const val = raw[key];
+      if (val === undefined || val === null) return false;
+      if (typeof val === 'string' && val.trim() === '') return false;
+      return true;
+    };
+
+    if (hasRawValue('employeeId')) updated.employeeId = cleaned.employeeId;
+    if (hasRawValue('employeeName')) updated.employeeName = cleaned.employeeName;
+    if (hasRawValue('department')) updated.department = cleaned.department;
+    if (hasRawValue('position')) updated.position = cleaned.position;
+    if (hasRawValue('directManager')) updated.directManager = cleaned.directManager;
+    if (hasRawValue('contractType')) updated.contractType = cleaned.contractType;
+    if (hasRawValue('contractNumber')) updated.contractNumber = cleaned.contractNumber;
+    if (hasRawValue('contractStartDate')) updated.contractStartDate = cleaned.contractStartDate;
+    if (hasRawValue('contractEndDate')) updated.contractEndDate = cleaned.contractEndDate;
+    
+    if (hasRawValue('contractStatus')) updated.contractStatus = cleaned.contractStatus;
+    if (hasRawValue('userRecommendation')) updated.userRecommendation = cleaned.userRecommendation;
+    if (hasRawValue('directorApproval')) updated.directorApproval = cleaned.directorApproval;
+    if (hasRawValue('headHRReview')) updated.headHRReview = cleaned.headHRReview;
+    
+    if (hasRawValue('contractDraftDate')) updated.contractDraftDate = cleaned.contractDraftDate;
+    if (hasRawValue('contractSentDate')) updated.contractSentDate = cleaned.contractSentDate;
+    if (hasRawValue('signedDeadline')) updated.signedDeadline = cleaned.signedDeadline;
+    if (hasRawValue('signedReceivedDate')) updated.signedReceivedDate = cleaned.signedReceivedDate;
+    
+    if (hasRawValue('compensationReviewNeeded')) {
+      updated.compensationReviewNeeded = cleaned.compensationReviewNeeded;
+    }
+    if (hasRawValue('negotiationStatus')) {
+      updated.negotiationStatus = cleaned.negotiationStatus;
+      updated.salaryNegotiationStatus = cleaned.salaryNegotiationStatus;
+    }
+    if (hasRawValue('negotiationNotes')) updated.negotiationNotes = cleaned.negotiationNotes;
+    if (hasRawValue('payrollFollowUpNotes')) updated.payrollFollowUpNotes = cleaned.payrollFollowUpNotes;
+    
+    if (hasRawValue('hrPic')) updated.hrPic = cleaned.hrPic;
+    if (hasRawValue('notes')) updated.notes = cleaned.notes;
+
+    return updated;
+  };
+
+  // Helper to update Probation fields if present in raw Excel row
+  const updateProbationFields = (existing: ProbationItem, raw: any, cleaned: ProbationItem): ProbationItem => {
+    const updated = { ...existing };
+    const hasRawValue = (key: string) => {
+      const val = raw[key];
+      if (val === undefined || val === null) return false;
+      if (typeof val === 'string' && val.trim() === '') return false;
+      return true;
+    };
+
+    if (hasRawValue('employeeId')) updated.employeeId = cleaned.employeeId;
+    if (hasRawValue('employeeName')) updated.employeeName = cleaned.employeeName;
+    if (hasRawValue('department')) updated.department = cleaned.department;
+    if (hasRawValue('position')) updated.position = cleaned.position;
+    if (hasRawValue('directManager')) updated.directManager = cleaned.directManager;
+    if (hasRawValue('probationStartDate')) updated.probationStartDate = cleaned.probationStartDate;
+    if (hasRawValue('probationEndDate')) updated.probationEndDate = cleaned.probationEndDate;
+    
+    if (hasRawValue('reviewFormStatus')) updated.reviewFormStatus = cleaned.reviewFormStatus;
+    if (hasRawValue('userRecommendation')) updated.userRecommendation = cleaned.userRecommendation;
+    if (hasRawValue('directorApproval')) updated.directorApproval = cleaned.directorApproval;
+    if (hasRawValue('finalDecision')) updated.finalDecision = cleaned.finalDecision;
+    if (hasRawValue('newEmploymentStatus')) updated.newEmploymentStatus = cleaned.newEmploymentStatus;
+    if (hasRawValue('probationStatus')) updated.probationStatus = cleaned.probationStatus;
+    
+    if (hasRawValue('hrPic')) updated.hrPic = cleaned.hrPic;
+    if (hasRawValue('notes')) updated.notes = cleaned.notes;
+
+    return updated;
+  };
+
   // Perform Final Save/Import
   const handleFinalImport = () => {
-    // Filter rows that are valid and NOT duplicates
-    const rowsToImport = processedRows.filter(r => r.isValid && !r.isDuplicate).map(r => r.cleaned);
-    
-    if (rowsToImport.length === 0) {
-      alert("There are no valid rows to import (or all are duplicates).");
+    const validRowsToProcess = processedRows.filter(r => r.isValid);
+    if (validRowsToProcess.length === 0) {
+      alert("There are no valid rows to import.");
       return;
     }
 
-    onImportComplete(importType, rowsToImport);
-    alert(`Successfully imported ${rowsToImport.length} records!`);
+    let finalItems: any[] = [];
+    let addedCount = 0;
+    let updatedCount = 0;
+    let replacedCount = 0;
+    let skippedCount = 0;
+
+    if (importType === 'contract') {
+      const workingList = [...existingContracts];
+
+      validRowsToProcess.forEach(row => {
+        if (row.isDuplicate) {
+          if (duplicateMode === 'skip') {
+            skippedCount++;
+          } else if (duplicateMode === 'replace') {
+            replacedCount++;
+            const idx = workingList.findIndex(
+              c => c.employeeName.toLowerCase() === row.cleaned.employeeName.toLowerCase() && 
+                   c.contractEndDate === row.cleaned.contractEndDate
+            );
+            if (idx !== -1) {
+              const existingItem = workingList[idx];
+              workingList[idx] = {
+                ...row.cleaned,
+                id: existingItem.id,
+                employeeId: existingItem.employeeId
+              };
+            } else {
+              workingList.unshift(row.cleaned);
+              addedCount++;
+            }
+          } else if (duplicateMode === 'update') {
+            updatedCount++;
+            const idx = workingList.findIndex(
+              c => c.employeeName.toLowerCase() === row.cleaned.employeeName.toLowerCase() && 
+                   c.contractEndDate === row.cleaned.contractEndDate
+            );
+            if (idx !== -1) {
+              workingList[idx] = updateContractFields(workingList[idx], row.raw, row.cleaned);
+            } else {
+              workingList.unshift(row.cleaned);
+              addedCount++;
+            }
+          } else if (duplicateMode === 'new') {
+            addedCount++;
+            workingList.unshift(row.cleaned);
+          }
+        } else {
+          addedCount++;
+          workingList.unshift(row.cleaned);
+        }
+      });
+
+      finalItems = workingList;
+    } else {
+      const workingList = [...existingProbations];
+
+      validRowsToProcess.forEach(row => {
+        if (row.isDuplicate) {
+          if (duplicateMode === 'skip') {
+            skippedCount++;
+          } else if (duplicateMode === 'replace') {
+            replacedCount++;
+            const idx = workingList.findIndex(
+              p => p.employeeName.toLowerCase() === row.cleaned.employeeName.toLowerCase() && 
+                   p.probationEndDate === row.cleaned.probationEndDate
+            );
+            if (idx !== -1) {
+              const existingItem = workingList[idx];
+              workingList[idx] = {
+                ...row.cleaned,
+                id: existingItem.id,
+                employeeId: existingItem.employeeId
+              };
+            } else {
+              workingList.unshift(row.cleaned);
+              addedCount++;
+            }
+          } else if (duplicateMode === 'update') {
+            updatedCount++;
+            const idx = workingList.findIndex(
+              p => p.employeeName.toLowerCase() === row.cleaned.employeeName.toLowerCase() && 
+                   p.probationEndDate === row.cleaned.probationEndDate
+            );
+            if (idx !== -1) {
+              workingList[idx] = updateProbationFields(workingList[idx], row.raw, row.cleaned);
+            } else {
+              workingList.unshift(row.cleaned);
+              addedCount++;
+            }
+          } else if (duplicateMode === 'new') {
+            addedCount++;
+            workingList.unshift(row.cleaned);
+          }
+        } else {
+          addedCount++;
+          workingList.unshift(row.cleaned);
+        }
+      });
+
+      finalItems = workingList;
+    }
+
+    onImportComplete(importType, finalItems);
+    alert(`Import selesai. ${addedCount} data baru ditambahkan, ${updatedCount} data diperbarui, ${replacedCount} data diganti, ${skippedCount} data dilewati.`);
   };
 
   const totalRows = processedRows.length;
-  const validRows = processedRows.filter(r => r.isValid && !r.isDuplicate).length;
-  const duplicateRows = processedRows.filter(r => r.isDuplicate).length;
-  const warningRows = processedRows.filter(r => r.isValid && r.warnings.length > 0 && !r.isDuplicate).length;
+  const duplicateRows = processedRows.filter(r => r.isValid && r.isDuplicate).length;
+  const newRows = processedRows.filter(r => r.isValid && !r.isDuplicate).length;
+  const warningRows = processedRows.filter(r => r.isValid && r.warnings.length > 0).length;
   const errorRows = processedRows.filter(r => !r.isValid).length;
+  const importableRowsCount = duplicateMode === 'skip' ? newRows : (newRows + duplicateRows);
 
   return (
     <div className="space-y-6 animate-fade-in" id="import-excel-view">
@@ -612,10 +789,10 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
               </h3>
               <ul className="space-y-3.5 text-xs text-slate-400 leading-relaxed list-disc list-inside">
                 <li>Make sure the first row of your sheet contains the column names.</li>
-                <li>We'll auto-suggest mappings for common terms like <strong className="text-indigo-300">"Nama", "Gaji", "Expired"</strong>.</li>
+                <li>We'll auto-suggest mappings for common terms like <strong className="text-indigo-300">"Nama", "Jabatan", "Expired"</strong>.</li>
                 <li>The system will automatically recognize Excel date formats and normalize them.</li>
                 <li>Missing Employee IDs will be dynamically auto-generated.</li>
-                <li>Salaries specified with currencies (like <strong className="text-indigo-300">Rp 5.000.000</strong>) will be parsed into raw numbers.</li>
+                <li>Salary/Gaji columns are detected only to warn the user, then ignored for data privacy. Nominal compensation data must be handled outside this system by Payroll/Management.</li>
                 <li><strong>Required Fields</strong>:
                   <div className="mt-1.5 pl-4 font-mono font-bold text-slate-300 space-y-0.5">
                     <div>• Employee Name</div>
@@ -778,90 +955,120 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
       {step === 'review' && (
         <div className="space-y-6">
           {/* STATS CARDS */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 animate-fade-in">
             <div className="bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Total Detected</div>
-              <div className="text-2xl font-bold text-slate-850 mt-1 font-mono">{totalRows}</div>
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">New Rows</div>
+              <div className="text-2xl font-bold text-slate-800 mt-1 font-mono">{processedRows.filter(r => r.isValid && !r.isDuplicate).length}</div>
+              <p className="text-[10px] text-slate-400 mt-0.5">Unique valid records</p>
             </div>
             
-            <div className="bg-white border border-emerald-150 p-4 rounded-xl shadow-xs">
-              <div className="text-xs font-bold text-emerald-600 uppercase tracking-wider flex items-center gap-1">
-                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
-                Valid rows
-              </div>
-              <div className="text-2xl font-bold text-emerald-700 mt-1 font-mono">{validRows}</div>
+            <div className="bg-white border border-indigo-150 p-4 rounded-xl shadow-xs">
+              <div className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Duplicates Found</div>
+              <div className="text-2xl font-bold text-indigo-700 mt-1 font-mono">{processedRows.filter(r => r.isValid && r.isDuplicate).length}</div>
+              <p className="text-[10px] text-indigo-400 mt-0.5">Matching name & end date</p>
             </div>
 
-            <div className="bg-white border border-amber-150 p-4 rounded-xl shadow-xs">
-              <div className="text-xs font-bold text-amber-600 uppercase tracking-wider flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                With Warnings
+            <div className={`p-4 rounded-xl shadow-xs border ${duplicateMode === 'skip' ? 'bg-amber-50/50 border-amber-200' : 'bg-white border-slate-150 opacity-60'}`}>
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rows to Skip</div>
+              <div className="text-2xl font-bold text-slate-800 mt-1 font-mono">
+                {duplicateMode === 'skip' ? processedRows.filter(r => r.isValid && r.isDuplicate).length : 0}
               </div>
-              <div className="text-2xl font-bold text-amber-700 mt-1 font-mono">{warningRows}</div>
+              <p className="text-[10px] text-slate-450 mt-0.5">Will be bypassed</p>
+            </div>
+
+            <div className={`p-4 rounded-xl shadow-xs border ${duplicateMode === 'replace' ? 'bg-indigo-50/50 border-indigo-200' : 'bg-white border-slate-150 opacity-60'}`}>
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rows to Replace</div>
+              <div className="text-2xl font-bold text-slate-800 mt-1 font-mono">
+                {duplicateMode === 'replace' ? processedRows.filter(r => r.isValid && r.isDuplicate).length : 0}
+              </div>
+              <p className="text-[10px] text-slate-450 mt-0.5">Overwrite existing</p>
+            </div>
+
+            <div className={`p-4 rounded-xl shadow-xs border ${duplicateMode === 'update' ? 'bg-teal-50/50 border-teal-200' : 'bg-white border-slate-150 opacity-60'}`}>
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">Rows to Update</div>
+              <div className="text-2xl font-bold text-slate-800 mt-1 font-mono">
+                {duplicateMode === 'update' ? processedRows.filter(r => r.isValid && r.isDuplicate).length : 0}
+              </div>
+              <p className="text-[10px] text-slate-450 mt-0.5">Update filled fields</p>
             </div>
 
             <div className="bg-white border border-rose-150 p-4 rounded-xl shadow-xs">
-              <div className="text-xs font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1">
-                <XCircle className="h-3.5 w-3.5 text-rose-500" />
-                Invalid/Missing
-              </div>
-              <div className="text-2xl font-bold text-rose-700 mt-1 font-mono">{errorRows}</div>
-            </div>
-
-            <div className="col-span-2 md:col-span-1 bg-white border border-slate-150 p-4 rounded-xl shadow-xs">
-              <div className="text-xs font-bold text-slate-400 uppercase tracking-wider">Skipped Duplicates</div>
-              <div className="text-2xl font-bold text-slate-600 mt-1 font-mono">{duplicateRows}</div>
+              <div className="text-xs font-bold text-rose-600 uppercase tracking-wider">Invalid Rows</div>
+              <div className="text-2xl font-bold text-rose-700 mt-1 font-mono">{processedRows.filter(r => !r.isValid).length}</div>
+              <p className="text-[10px] text-rose-400 mt-0.5">Contains errors</p>
             </div>
           </div>
 
-          {/* CONTROL BAR */}
-          <div className="bg-white border border-slate-150 rounded-xl p-5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="flex items-center gap-6">
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={skipDuplicates}
-                  onChange={(e) => {
-                    setSkipDuplicates(e.target.checked);
-                    // We must trigger re-process to recalculate isDuplicate flags
-                  }}
-                  className="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4 border-slate-300"
-                />
-                <div>
-                  <span className="text-xs font-bold text-slate-800">Skip Duplicates</span>
-                  <p className="text-[10px] text-slate-400 leading-none mt-0.5">Skip rows that match name & expiration date</p>
-                </div>
-              </label>
+          {/* CONTROL BAR WITH DUPLICATE MODE OPTIONS */}
+          <div className="bg-white border border-slate-150 rounded-xl p-5 shadow-xs space-y-4">
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+              <div className="space-y-1">
+                <span className="text-xs font-bold text-indigo-600 uppercase tracking-wider">Duplicate Handling Mode</span>
+                <p className="text-xs text-slate-500">Choose how the system handles records with the same Employee Name and End Date.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { mode: 'skip', label: 'Skip duplicate', desc: 'Skip rows already present' },
+                  { mode: 'replace', label: 'Replace existing', desc: 'Fully replace matched records' },
+                  { mode: 'update', label: 'Update existing fields only', desc: 'Update fields filled in Excel' },
+                  { mode: 'new', label: 'Import as new record', desc: 'Import anyway as separate record' }
+                ].map(opt => (
+                  <button
+                    key={opt.mode}
+                    onClick={() => setDuplicateMode(opt.mode as DuplicateMode)}
+                    className={`px-4 py-2 text-left rounded-xl border text-xs font-semibold cursor-pointer transition ${
+                      duplicateMode === opt.mode
+                        ? 'border-indigo-600 bg-indigo-50/25 text-indigo-950 shadow-xs'
+                        : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div>{opt.label}</div>
+                    <div className="text-[10px] font-normal text-slate-400 mt-0.5">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
             </div>
 
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStep('mapping')}
-                className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-sm font-medium transition cursor-pointer"
-              >
-                Back to Mapping
-              </button>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Info className="h-4 w-4 text-indigo-500 shrink-0" />
+                <span>
+                  {duplicateMode === 'skip' && "Duplicates will be bypassed. No modifications will be made to existing data."}
+                  {duplicateMode === 'replace' && "Existing matches will be completely overwritten while keeping original IDs."}
+                  {duplicateMode === 'update' && "Only non-empty Excel columns will update matching records. Your manual edits in the app are safe."}
+                  {duplicateMode === 'new' && "Duplicates will be imported as fresh records, potentially resulting in duplicates."}
+                </span>
+              </div>
 
-              {errorRows > 0 && (
+              <div className="flex gap-2 shrink-0 justify-end">
                 <button
-                  onClick={handleDownloadErrorCSV}
-                  className="px-4 py-2 border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-xl text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
+                  onClick={() => setStep('mapping')}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-xl text-sm font-medium transition cursor-pointer"
                 >
-                  <Download className="h-4 w-4" />
-                  Download Errors ({errorRows})
+                  Back to Mapping
                 </button>
-              )}
 
-              <button
-                onClick={handleFinalImport}
-                disabled={validRows === 0}
-                className={`px-5 py-2 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-sm font-semibold shadow-md flex items-center gap-1.5 transition cursor-pointer ${
-                  validRows === 0 ? "opacity-50 cursor-not-allowed" : ""
-                }`}
-              >
-                <Check className="h-4 w-4" />
-                Import Valid Rows ({validRows})
-              </button>
+                {errorRows > 0 && (
+                  <button
+                    onClick={handleDownloadErrorCSV}
+                    className="px-4 py-2 border border-rose-200 text-rose-700 hover:bg-rose-50 rounded-xl text-sm font-medium transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Download className="h-4 w-4" />
+                    Download Errors ({errorRows})
+                  </button>
+                )}
+
+                <button
+                  onClick={handleFinalImport}
+                  disabled={processedRows.filter(r => r.isValid).length === 0}
+                  className={`px-5 py-2.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl text-sm font-semibold shadow-md flex items-center gap-1.5 transition cursor-pointer ${
+                    processedRows.filter(r => r.isValid).length === 0 ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  <Check className="h-4 w-4" />
+                  Confirm Import ({importableRowsCount})
+                </button>
+              </div>
             </div>
           </div>
 
@@ -906,15 +1113,28 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
                       badgeColor = "bg-rose-50 text-rose-800 border-rose-200";
                       badgeLabel = "Invalid";
                     } else if (isDuplicate) {
-                      badgeColor = "bg-slate-100 text-slate-600 border-slate-200";
-                      badgeLabel = "Duplicate (Skip)";
+                      if (duplicateMode === 'skip') {
+                        badgeColor = "bg-slate-100 text-slate-500 border-slate-250";
+                        badgeLabel = "Duplicate (Skip)";
+                      } else if (duplicateMode === 'replace') {
+                        badgeColor = "bg-indigo-50 text-indigo-700 border-indigo-200";
+                        badgeLabel = "Duplicate (Replace)";
+                      } else if (duplicateMode === 'update') {
+                        badgeColor = "bg-teal-50 text-teal-700 border-teal-200";
+                        badgeLabel = "Duplicate (Update)";
+                      } else {
+                        badgeColor = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                        badgeLabel = "Duplicate (As New)";
+                      }
                     } else if (warnings.length > 0) {
                       badgeColor = "bg-amber-50 text-amber-800 border-amber-200";
                       badgeLabel = "Warning";
                     }
 
+                    const isDimmed = isValid && isDuplicate && duplicateMode === 'skip';
+
                     return (
-                      <tr key={index} className={`hover:bg-slate-50/50 ${!isValid ? "bg-rose-50/10" : isDuplicate ? "bg-slate-50/20 opacity-70" : ""}`}>
+                      <tr key={index} className={`hover:bg-slate-50/50 transition ${!isValid ? "bg-rose-50/10" : isDimmed ? "bg-slate-50/40 opacity-50 line-through text-slate-400" : ""}`}>
                         <td className="px-4 py-4 text-center font-mono font-bold text-slate-400">
                           {rowIndex}
                         </td>

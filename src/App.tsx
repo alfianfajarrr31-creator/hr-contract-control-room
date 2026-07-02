@@ -223,14 +223,12 @@ export default function App() {
     syncWithStorage(contracts, updated, simulationDate);
   };
 
-  const handleImportComplete = (type: 'contract' | 'probation', newItems: any[]) => {
+  const handleImportComplete = (type: 'contract' | 'probation', finalItems: any[]) => {
     if (type === 'contract') {
-      const updated = [...newItems, ...contracts];
-      syncWithStorage(updated, probations, simulationDate);
+      syncWithStorage(finalItems, probations, simulationDate);
       setActiveTab("contracts");
     } else {
-      const updated = [...newItems, ...probations];
-      syncWithStorage(contracts, updated, simulationDate);
+      syncWithStorage(contracts, finalItems, simulationDate);
       setActiveTab("probation");
     }
   };
