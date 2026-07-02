@@ -30,7 +30,8 @@ import {
   ShieldCheck,
   Download,
   FileSpreadsheet,
-  Mail
+  Mail,
+  Database
 } from "lucide-react";
 
 export default function App() {
@@ -50,11 +51,20 @@ export default function App() {
   const [editingContract, setEditingContract] = useState<ContractItem | null>(null);
   const [editingProbation, setEditingProbation] = useState<ProbationItem | null>(null);
 
+  // Initialize flag for production / sample data mode
+  const [isInitialized, setIsInitialized] = useState<boolean>(() => {
+    const savedContracts = localStorage.getItem("hr_contract_control_contracts");
+    const savedProbations = localStorage.getItem("hr_contract_control_probations");
+    const hasInitializedFlag = localStorage.getItem("hr_contract_control_initialized") === "true";
+    return savedContracts !== null || savedProbations !== null || hasInitializedFlag;
+  });
+
   // Load Data on startup
   useEffect(() => {
     const savedContracts = localStorage.getItem("hr_contract_control_contracts");
     const savedProbations = localStorage.getItem("hr_contract_control_probations");
     const savedSimDate = localStorage.getItem("hr_contract_control_simdate");
+    const hasInitializedFlag = localStorage.getItem("hr_contract_control_initialized") === "true";
 
     const simDate = savedSimDate || getTodayDateStr();
     setSimulationDate(simDate);
@@ -62,41 +72,41 @@ export default function App() {
     let rawContracts: ContractItem[] = [];
     let rawProbations: ProbationItem[] = [];
 
-    if (savedContracts) {
-      try {
-        const parsed = JSON.parse(savedContracts);
-        if (Array.isArray(parsed)) {
-          rawContracts = parsed.map((c: any) => {
-            // Safe removal of old nominal salary fields for data privacy
-            delete c.currentSalary;
-            delete c.proposedSalary;
-            delete c.finalSalary;
-            return {
-              ...c,
-              compensationReviewNeeded: c.compensationReviewNeeded ?? false,
-              negotiationStatus: c.negotiationStatus ?? c.salaryNegotiationStatus ?? "No Negotiation",
-              negotiationNotes: c.negotiationNotes ?? "",
-              payrollFollowUpNotes: c.payrollFollowUpNotes ?? "",
-            };
-          });
-        } else {
-          rawContracts = [...INITIAL_CONTRACTS];
+    // Only load if initialized. Otherwise remain empty until user makes choice.
+    if (savedContracts !== null || savedProbations !== null || hasInitializedFlag) {
+      if (savedContracts) {
+        try {
+          const parsed = JSON.parse(savedContracts);
+          if (Array.isArray(parsed)) {
+            rawContracts = parsed.map((c: any) => {
+              // Safe removal of old nominal salary fields for data privacy
+              delete c.currentSalary;
+              delete c.proposedSalary;
+              delete c.finalSalary;
+              return {
+                ...c,
+                compensationReviewNeeded: c.compensationReviewNeeded ?? false,
+                negotiationStatus: c.negotiationStatus ?? c.salaryNegotiationStatus ?? "No Negotiation",
+                negotiationNotes: c.negotiationNotes ?? "",
+                payrollFollowUpNotes: c.payrollFollowUpNotes ?? "",
+              };
+            });
+          }
+        } catch (e) {
+          rawContracts = [];
         }
-      } catch (e) {
-        rawContracts = [...INITIAL_CONTRACTS];
       }
-    } else {
-      rawContracts = [...INITIAL_CONTRACTS];
-    }
 
-    if (savedProbations) {
-      try {
-        rawProbations = JSON.parse(savedProbations);
-      } catch (e) {
-        rawProbations = [...INITIAL_PROBATIONS];
+      if (savedProbations) {
+        try {
+          rawProbations = JSON.parse(savedProbations);
+        } catch (e) {
+          rawProbations = [];
+        }
       }
     } else {
-      rawProbations = [...INITIAL_PROBATIONS];
+      rawContracts = [];
+      rawProbations = [];
     }
 
     // Process SLAs based on the simulation date
@@ -106,8 +116,6 @@ export default function App() {
         ...c,
         daysRemaining: sla.daysRemaining,
         priority: sla.priority,
-        // If contract is newly created and status was not finalized, we could adjust it, 
-        // but let's respect user-defined status and let priority show warning.
       };
     });
 
@@ -161,38 +169,115 @@ export default function App() {
 
   // Reset all to original seeds
   const handleResetToSeeds = () => {
-    if (confirm("Reset Sandbox? This will clear all changes and restore original seed data.")) {
-      localStorage.removeItem("hr_contract_control_contracts");
-      localStorage.removeItem("hr_contract_control_probations");
-      localStorage.removeItem("hr_contract_control_simdate");
-      
-      const defaultDate = getTodayDateStr();
-      setSimulationDate(defaultDate);
+    handleResetToSampleData();
+  };
 
+  // Clear only data marked as isSampleData: true
+  const handleClearSampleData = () => {
+    const remainingContracts = contracts.filter(c => c.isSampleData !== true);
+    const remainingProbations = probations.filter(p => p.isSampleData !== true);
+    
+    const clearedContractsCount = contracts.length - remainingContracts.length;
+    const clearedProbationsCount = probations.length - remainingProbations.length;
+    
+    setContracts(remainingContracts);
+    setProbations(remainingProbations);
+    localStorage.setItem("hr_contract_control_contracts", JSON.stringify(remainingContracts));
+    localStorage.setItem("hr_contract_control_probations", JSON.stringify(remainingProbations));
+    
+    alert(`Successfully cleared ${clearedContractsCount} sample contracts and ${clearedProbationsCount} sample probations.`);
+  };
+
+  // Clear all data
+  const handleClearAllData = () => {
+    if (confirm("Are you sure? This will permanently delete all local data from this browser. Please export backup first.")) {
+      setContracts([]);
+      setProbations([]);
+      localStorage.setItem("hr_contract_control_contracts", JSON.stringify([]));
+      localStorage.setItem("hr_contract_control_probations", JSON.stringify([]));
+      localStorage.setItem("hr_contract_control_initialized", "true");
+      setIsInitialized(true);
+      alert("All local data has been permanently cleared.");
+    }
+  };
+
+  // Reset entirely to sample seeds
+  const handleResetToSampleData = () => {
+    if (confirm("Are you sure you want to reset to sample data? This will clear all existing data and restore the sample sandbox data.")) {
+      const defaultDate = simulationDate || getTodayDateStr();
+      
       const finalC = INITIAL_CONTRACTS.map(c => {
         const sla = computeContractSLA(c.contractEndDate, c.contractStatus, defaultDate);
-        return { ...c, daysRemaining: sla.daysRemaining, priority: sla.priority };
+        return { ...c, daysRemaining: sla.daysRemaining, priority: sla.priority, isSampleData: true };
       });
 
       const finalP = INITIAL_PROBATIONS.map(p => {
         const sla = computeProbationSLA(p.probationEndDate, p.finalDecision, defaultDate);
-        return { ...p, daysRemaining: sla.daysRemaining, priority: sla.priority };
+        return { ...p, daysRemaining: sla.daysRemaining, priority: sla.priority, isSampleData: true };
       });
 
       setContracts(finalC);
       setProbations(finalP);
-      setActiveTab("dashboard");
+      localStorage.setItem("hr_contract_control_contracts", JSON.stringify(finalC));
+      localStorage.setItem("hr_contract_control_probations", JSON.stringify(finalP));
+      localStorage.setItem("hr_contract_control_initialized", "true");
+      setIsInitialized(true);
+      alert("Successfully reset all data to sandbox sample records.");
     }
+  };
+
+  // Onboarding choices
+  const handleLoadSampleData = () => {
+    const defaultDate = simulationDate || getTodayDateStr();
+    
+    const finalC = INITIAL_CONTRACTS.map(c => {
+      const sla = computeContractSLA(c.contractEndDate, c.contractStatus, defaultDate);
+      return { ...c, daysRemaining: sla.daysRemaining, priority: sla.priority, isSampleData: true };
+    });
+
+    const finalP = INITIAL_PROBATIONS.map(p => {
+      const sla = computeProbationSLA(p.probationEndDate, p.finalDecision, defaultDate);
+      return { ...p, daysRemaining: sla.daysRemaining, priority: sla.priority, isSampleData: true };
+    });
+
+    setContracts(finalC);
+    setProbations(finalP);
+    localStorage.setItem("hr_contract_control_contracts", JSON.stringify(finalC));
+    localStorage.setItem("hr_contract_control_probations", JSON.stringify(finalP));
+    localStorage.setItem("hr_contract_control_initialized", "true");
+    setIsInitialized(true);
+    setActiveTab("dashboard");
+  };
+
+  const handleStartBlank = () => {
+    setContracts([]);
+    setProbations([]);
+    localStorage.setItem("hr_contract_control_contracts", JSON.stringify([]));
+    localStorage.setItem("hr_contract_control_probations", JSON.stringify([]));
+    localStorage.setItem("hr_contract_control_initialized", "true");
+    setIsInitialized(true);
+    setActiveTab("dashboard");
+  };
+
+  const handleStartWithImport = () => {
+    setContracts([]);
+    setProbations([]);
+    localStorage.setItem("hr_contract_control_contracts", JSON.stringify([]));
+    localStorage.setItem("hr_contract_control_probations", JSON.stringify([]));
+    localStorage.setItem("hr_contract_control_initialized", "true");
+    setIsInitialized(true);
+    setActiveTab("import-excel");
   };
 
   // CONTRACT CRUD
   const handleSaveContract = (savedItem: ContractItem) => {
     let updated: ContractItem[];
+    const itemWithFlag = { ...savedItem };
     const exists = contracts.some(c => c.id === savedItem.id);
     if (exists) {
-      updated = contracts.map(c => c.id === savedItem.id ? savedItem : c);
+      updated = contracts.map(c => c.id === savedItem.id ? { ...itemWithFlag, isSampleData: c.isSampleData ?? false } : c);
     } else {
-      updated = [savedItem, ...contracts];
+      updated = [{ ...itemWithFlag, isSampleData: false }, ...contracts];
     }
     syncWithStorage(updated, probations, simulationDate);
     setActiveTab("contracts");
@@ -207,11 +292,12 @@ export default function App() {
   // PROBATION CRUD
   const handleSaveProbation = (savedItem: ProbationItem) => {
     let updated: ProbationItem[];
+    const itemWithFlag = { ...savedItem };
     const exists = probations.some(p => p.id === savedItem.id);
     if (exists) {
-      updated = probations.map(p => p.id === savedItem.id ? savedItem : p);
+      updated = probations.map(p => p.id === savedItem.id ? { ...itemWithFlag, isSampleData: p.isSampleData ?? false } : p);
     } else {
-      updated = [savedItem, ...probations];
+      updated = [{ ...itemWithFlag, isSampleData: false }, ...probations];
     }
     syncWithStorage(contracts, updated, simulationDate);
     setActiveTab("probation");
@@ -220,8 +306,10 @@ export default function App() {
 
   // PROBATION TO CONTRACT CONVERSION (ARC 3.3)
   const handleConvertProbationToContract = (newContract: ContractItem, updatedProbation: ProbationItem) => {
-    const updatedContracts = [newContract, ...contracts];
-    const updatedProbations = probations.map(p => p.id === updatedProbation.id ? updatedProbation : p);
+    const newContractWithFlag = { ...newContract, isSampleData: false };
+    const updatedProbationWithFlag = { ...updatedProbation, isSampleData: updatedProbation.isSampleData ?? false };
+    const updatedContracts = [newContractWithFlag, ...contracts];
+    const updatedProbations = probations.map(p => p.id === updatedProbation.id ? updatedProbationWithFlag : p);
     syncWithStorage(updatedContracts, updatedProbations, simulationDate);
     setActiveTab("contracts");
   };
@@ -496,7 +584,83 @@ export default function App() {
 
         {/* Dynamic Content Views */}
         <main className="flex-1 overflow-y-auto p-8" id="main-scroller">
-          {activeTab === "dashboard" && (
+          {!isInitialized ? (
+            <div className="max-w-4xl mx-auto py-12 px-4 space-y-8 animate-fade-in" id="onboarding-view">
+              <div className="text-center space-y-3">
+                <div className="h-16 w-16 bg-indigo-50 text-indigo-600 rounded-2xl flex items-center justify-center mx-auto shadow-md">
+                  <Database className="h-8 w-8" />
+                </div>
+                <h1 className="text-3xl font-bold text-slate-900 font-display">Welcome to HR Contract Control Room</h1>
+                <p className="text-slate-500 max-w-lg mx-auto text-sm">
+                  Initialize your workforce database. Start fresh with a blank template, load sandbox sample data, or import your existing Excel/CSV spreadsheet.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Option 1: Load Sample */}
+                <div className="bg-white border border-indigo-100 hover:border-indigo-300 rounded-2xl p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="h-10 w-10 bg-indigo-50 text-indigo-600 rounded-xl flex items-center justify-center">
+                      <Sliders className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 font-display">Load Sample Data</h3>
+                    <p className="text-xs text-slate-500 leading-normal">
+                      Populate with realistic sample contracts, evaluation SLAs, and test workflows. Best for exploring capabilities.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleLoadSampleData}
+                    id="btn-onboarding-load-sample"
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition"
+                  >
+                    Load Sample Data
+                  </button>
+                </div>
+
+                {/* Option 2: Import Excel */}
+                <div className="bg-white border border-emerald-100 hover:border-emerald-300 rounded-2xl p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="h-10 w-10 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center">
+                      <FileSpreadsheet className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 font-display">Import Excel / CSV</h3>
+                    <p className="text-xs text-slate-500 leading-normal">
+                      Map, clean, and import your own employee PKWT/probation spreadsheet using our smart column-matching importer.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleStartWithImport}
+                    id="btn-onboarding-import"
+                    className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition"
+                  >
+                    Import Spreadsheet
+                  </button>
+                </div>
+
+                {/* Option 3: Start Blank */}
+                <div className="bg-white border border-slate-100 hover:border-slate-300 rounded-2xl p-6 shadow-sm hover:shadow-md transition flex flex-col justify-between space-y-4">
+                  <div className="space-y-3">
+                    <div className="h-10 w-10 bg-slate-50 text-slate-600 rounded-xl flex items-center justify-center">
+                      <FileText className="h-5 w-5" />
+                    </div>
+                    <h3 className="text-base font-bold text-slate-900 font-display">Start Blank</h3>
+                    <p className="text-xs text-slate-500 leading-normal">
+                      Start with a completely empty database. Manually input your personnel details and build your active trackers from scratch.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleStartBlank}
+                    id="btn-onboarding-blank"
+                    className="w-full py-2.5 bg-slate-800 hover:bg-slate-900 text-white rounded-xl text-xs font-semibold shadow-xs cursor-pointer transition"
+                  >
+                    Start Blank
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {activeTab === "dashboard" && (
             <DashboardView
               contracts={contracts}
               probations={probations}
@@ -548,7 +712,13 @@ export default function App() {
           )}
 
           {activeTab === "settings" && (
-            <SettingsView />
+            <SettingsView
+              contracts={contracts}
+              probations={probations}
+              onClearSampleData={handleClearSampleData}
+              onClearAllData={handleClearAllData}
+              onResetToSampleData={handleResetToSampleData}
+            />
           )}
 
           {activeTab === "add-contract" && (
@@ -601,6 +771,8 @@ export default function App() {
               onUpdateContracts={(updated) => syncWithStorage(updated, probations, simulationDate)}
               onUpdateProbations={(updated) => syncWithStorage(contracts, updated, simulationDate)}
             />
+          )}
+          </>
           )}
         </main>
       </div>

@@ -1,5 +1,7 @@
 import React from "react";
 import { 
+  ContractItem,
+  ProbationItem,
   ContractStatus, 
   ProbationStatus, 
   UserRecommendation, 
@@ -14,10 +16,54 @@ import {
   Calendar, 
   Users, 
   TrendingUp, 
-  ShieldAlert 
+  ShieldAlert,
+  Database,
+  Download,
+  Trash2,
+  RefreshCw,
+  FileText,
+  AlertTriangle
 } from "lucide-react";
 
-export const SettingsView: React.FC = () => {
+interface SettingsViewProps {
+  contracts: ContractItem[];
+  probations: ProbationItem[];
+  onClearSampleData: () => void;
+  onClearAllData: () => void;
+  onResetToSampleData: () => void;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  contracts,
+  probations,
+  onClearSampleData,
+  onClearAllData,
+  onResetToSampleData
+}) => {
+  const handleExportContractsBackup = () => {
+    const dataStr = JSON.stringify(contracts, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `contracts_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleExportProbationBackup = () => {
+    const dataStr = JSON.stringify(probations, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `probations_backup_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="space-y-8 animate-fade-in" id="settings-view-container">
       {/* Header */}
@@ -108,6 +154,102 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
 
+      </div>
+
+      {/* Data Management Section */}
+      <div className="bg-white border border-slate-150 rounded-xl p-6 shadow-xs space-y-6" id="data-management-panel">
+        <div className="border-b border-slate-100 pb-4">
+          <h3 className="font-bold text-slate-900 font-display text-lg flex items-center gap-2">
+            <Database className="h-5 w-5 text-indigo-600" />
+            Data Management
+          </h3>
+          <p className="text-xs text-slate-500 mt-1">Export database backups or modify the active LocalStorage sandbox contents.</p>
+        </div>
+
+        {/* Backup Reminder Box */}
+        <div className="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-xl flex items-start gap-3 shadow-xs">
+          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-amber-950 uppercase tracking-wider">LocalStorage Backup Advisory</h4>
+            <p className="text-xs text-amber-800 leading-relaxed">
+              Data is currently stored in this browser using LocalStorage. Before deploying major updates or clearing data, export a backup first.
+            </p>
+          </div>
+        </div>
+
+        {/* Action Buttons Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 pt-2">
+          {/* Export Contracts Backup */}
+          <button
+            onClick={handleExportContractsBackup}
+            id="btn-export-contracts-backup"
+            className="flex flex-col items-center justify-center p-4 border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/10 rounded-xl text-center transition cursor-pointer group space-y-2"
+          >
+            <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-lg group-hover:scale-110 transition">
+              <Download className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-800">Export Contracts Backup</span>
+            <span className="text-[10px] text-slate-400 font-mono">({contracts.length} records)</span>
+          </button>
+
+          {/* Export Probation Backup */}
+          <button
+            onClick={handleExportProbationBackup}
+            id="btn-export-probation-backup"
+            className="flex flex-col items-center justify-center p-4 border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/10 rounded-xl text-center transition cursor-pointer group space-y-2"
+          >
+            <div className="p-2.5 bg-emerald-50 text-emerald-600 rounded-lg group-hover:scale-110 transition">
+              <Download className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-800">Export Probation Backup</span>
+            <span className="text-[10px] text-slate-400 font-mono">({probations.length} records)</span>
+          </button>
+
+          {/* Clear Sample Data */}
+          <button
+            onClick={onClearSampleData}
+            id="btn-clear-sample-data"
+            className="flex flex-col items-center justify-center p-4 border border-slate-200 hover:border-rose-300 hover:bg-rose-50/10 rounded-xl text-center transition cursor-pointer group space-y-2"
+          >
+            <div className="p-2.5 bg-rose-50 text-rose-600 rounded-lg group-hover:scale-110 transition">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-800">Clear Sample Data</span>
+            <span className="text-[10px] text-slate-400 leading-normal">
+              Removes only records marked as sample ({contracts.filter(c => c.isSampleData).length + probations.filter(p => p.isSampleData).length} found)
+            </span>
+          </button>
+
+          {/* Reset to Sample Data */}
+          <button
+            onClick={onResetToSampleData}
+            id="btn-reset-sample-data"
+            className="flex flex-col items-center justify-center p-4 border border-slate-200 hover:border-amber-300 hover:bg-amber-50/10 rounded-xl text-center transition cursor-pointer group space-y-2"
+          >
+            <div className="p-2.5 bg-amber-50 text-amber-600 rounded-lg group-hover:scale-110 transition">
+              <RefreshCw className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-800">Reset to Sample Data</span>
+            <span className="text-[10px] text-slate-400 leading-normal">
+              Resets all active trackers back to the default sandboxed dataset
+            </span>
+          </button>
+
+          {/* Clear All Data */}
+          <button
+            onClick={onClearAllData}
+            id="btn-clear-all-data"
+            className="flex flex-col items-center justify-center p-4 border border-rose-200 hover:border-rose-500 hover:bg-rose-500 hover:text-white rounded-xl text-center transition cursor-pointer group space-y-2"
+          >
+            <div className="p-2.5 bg-rose-100 text-rose-700 rounded-lg group-hover:scale-110 group-hover:bg-rose-200 transition">
+              <Trash2 className="h-5 w-5" />
+            </div>
+            <span className="text-xs font-bold text-slate-800 group-hover:text-white">Clear All Data</span>
+            <span className="text-[10px] text-slate-400 group-hover:text-rose-100 leading-normal font-sans">
+              Wipes entire local browser storage completely
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* SLA Matrix rules list */}

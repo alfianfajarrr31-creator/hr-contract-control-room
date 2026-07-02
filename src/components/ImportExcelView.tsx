@@ -309,7 +309,8 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
           hrPic,
           notes,
           priority: "Low", // Computed in App.tsx syncWithStorage
-          daysRemaining: 0 // Computed in App.tsx syncWithStorage
+          daysRemaining: 0, // Computed in App.tsx syncWithStorage
+          isSampleData: false
         } as ContractItem;
       } else {
         const probationStartDate = parseExcelDate(rawRowObj.probationStartDate);
@@ -340,7 +341,8 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
           probationStatus,
           notes,
           priority: "Low", // Computed in App.tsx syncWithStorage
-          daysRemaining: 0 // Computed in App.tsx syncWithStorage
+          daysRemaining: 0, // Computed in App.tsx syncWithStorage
+          isSampleData: false
         } as ProbationItem;
       }
 
@@ -457,6 +459,7 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
     if (hasRawValue('hrPic')) updated.hrPic = cleaned.hrPic;
     if (hasRawValue('notes')) updated.notes = cleaned.notes;
 
+    updated.isSampleData = false;
     return updated;
   };
 
@@ -488,6 +491,7 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
     if (hasRawValue('hrPic')) updated.hrPic = cleaned.hrPic;
     if (hasRawValue('notes')) updated.notes = cleaned.notes;
 
+    updated.isSampleData = false;
     return updated;
   };
 
