@@ -4,7 +4,9 @@ import {
   ProbationStatus, 
   PriorityType, 
   UserRecommendation, 
-  ApprovalStatus 
+  ApprovalStatus,
+  ContractItem,
+  ContractStatus
 } from "../types";
 import { 
   Search, 
@@ -21,27 +23,206 @@ import {
   RefreshCw,
   CheckCircle,
   HelpCircle,
-  Clock
+  Clock,
+  X,
+  Info
 } from "lucide-react";
 import { DEPARTMENTS, HR_PICS } from "../seedData";
 
 interface ProbationTrackerViewProps {
   probations: ProbationItem[];
+  contracts: ContractItem[];
   onAddProbation: () => void;
   onEditProbation: (probation: ProbationItem) => void;
   onDeleteProbation: (id: string) => void;
   onExportCSV: (items: ProbationItem[]) => void;
+  onConvertProbationToContract: (newContract: ContractItem, updatedProbation: ProbationItem) => void;
 }
 
 export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   probations,
+  contracts,
   onAddProbation,
   onEditProbation,
   onDeleteProbation,
-  onExportCSV
+  onExportCSV,
+  onConvertProbationToContract
 }) => {
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Conversion state (ARC 3.3)
+  const [conversionProbation, setConversionProbation] = useState<ProbationItem | null>(null);
+  const [convDept, setConvDept] = useState("");
+  const [convPos, setConvPos] = useState("");
+  const [convMgr, setConvMgr] = useState("");
+  const [convContractType, setConvContractType] = useState("PKWT");
+  const [convContractNum, setConvContractNum] = useState("");
+  const [convStartDate, setConvStartDate] = useState("");
+  const [convDuration, setConvDuration] = useState("12 months");
+  const [convEndDate, setConvEndDate] = useState("");
+  const [convHrPic, setConvHrPic] = useState("");
+  const [convNotes, setConvNotes] = useState("Converted from probation record. Awaiting contract drafting.");
+  const [convErrors, setConvErrors] = useState<Record<string, string>>({});
+
+  const calculateEndDate = (start: string, duration: string): string => {
+    if (!start) return "";
+    const d = new Date(start);
+    if (isNaN(d.getTime())) return "";
+    
+    if (duration === "3 months") {
+      d.setMonth(d.getMonth() + 3);
+      d.setDate(d.getDate() - 1);
+    } else if (duration === "6 months") {
+      d.setMonth(d.getMonth() + 6);
+      d.setDate(d.getDate() - 1);
+    } else if (duration === "12 months") {
+      d.setMonth(d.getMonth() + 12);
+      d.setDate(d.getDate() - 1);
+    } else {
+      return "";
+    }
+    
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const startConversion = (p: ProbationItem) => {
+    setConversionProbation(p);
+    setConvDept(p.department);
+    setConvPos(p.position);
+    setConvMgr(p.directManager);
+    setConvContractType("PKWT");
+    
+    // contractStartDate = 1 day after probationEndDate
+    let defaultStart = "";
+    if (p.probationEndDate) {
+      const d = new Date(p.probationEndDate);
+      d.setDate(d.getDate() + 1);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      defaultStart = `${y}-${m}-${day}`;
+    }
+    setConvStartDate(defaultStart);
+    setConvDuration("12 months");
+    
+    // Auto calculate End Date based on Default Start + 12 months duration
+    const end = calculateEndDate(defaultStart, "12 months");
+    setConvEndDate(end);
+    
+    // contract number placeholder
+    const randomIdNum = Math.floor(100 + Math.random() * 900);
+    setConvContractNum(`CN-${randomIdNum}/HRD-PKWT/${new Date().getFullYear()}`);
+    
+    setConvHrPic(p.hrPic || HR_PICS[0] || "Siti Rahma");
+    setConvNotes("Converted from probation record. Awaiting contract drafting.");
+    setConvErrors({});
+  };
+
+  const handleDurationChange = (duration: string, start: string = convStartDate) => {
+    setConvDuration(duration);
+    if (duration !== "Custom") {
+      const computedEnd = calculateEndDate(start, duration);
+      setConvEndDate(computedEnd);
+    }
+  };
+
+  const handleStartDateChange = (start: string) => {
+    setConvStartDate(start);
+    if (convDuration !== "Custom") {
+      const computedEnd = calculateEndDate(start, convDuration);
+      setConvEndDate(computedEnd);
+    }
+  };
+
+  const handleConvertSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!conversionProbation) return;
+
+    // Duplicate prevention check
+    const alreadyLinked = conversionProbation.linkedContractId;
+    const hasContractWithSameSource = contracts?.some(c => c.sourceProbationId === conversionProbation.id);
+
+    if (alreadyLinked || hasContractWithSameSource) {
+      alert(`Conflict Detected! A contract record has already been created/linked for ${conversionProbation.employeeName}. Conversion aborted to prevent duplicates.`);
+      setConversionProbation(null);
+      return;
+    }
+
+    const errors: Record<string, string> = {};
+    if (!convDept.trim()) errors.dept = "Department is required";
+    if (!convPos.trim()) errors.position = "Position is required";
+    if (!convMgr.trim()) errors.manager = "Direct Manager is required";
+    if (!convContractType.trim()) errors.contractType = "Contract Type is required";
+    if (!convStartDate) errors.startDate = "Start Date is required";
+    if (!convEndDate) errors.endDate = "End Date is required";
+    if (!convHrPic.trim()) errors.hrPic = "HR PIC is required";
+
+    if (Object.keys(errors).length > 0) {
+      setConvErrors(errors);
+      return;
+    }
+
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    // Generate a truly unique Contract ID (duplicate prevention)
+    let newContractId = `CONV-${conversionProbation.employeeId || "EMP"}-${Date.now()}`;
+    let counter = 1;
+    while (contracts?.some(c => c.id === newContractId)) {
+      newContractId = `CONV-${conversionProbation.employeeId || "EMP"}-${Date.now()}-${counter}`;
+      counter++;
+    }
+
+    // Create the new contract item
+    const newContract: ContractItem = {
+      id: newContractId,
+      employeeId: conversionProbation.employeeId || `EMP-${Math.floor(100 + Math.random() * 900)}`,
+      employeeName: conversionProbation.employeeName,
+      department: convDept,
+      position: convPos,
+      directManager: convMgr,
+      contractType: convContractType,
+      contractNumber: convContractNum || `CN-${Math.floor(100 + Math.random() * 900)}/HRD/${new Date().getFullYear()}`,
+      contractStartDate: convStartDate,
+      contractEndDate: convEndDate,
+      daysRemaining: 0, // App sync will recalculate this
+      compensationReviewNeeded: false,
+      negotiationStatus: "No Negotiation",
+      negotiationNotes: "",
+      payrollFollowUpNotes: "",
+      userRecommendation: UserRecommendation.PassProbation,
+      directorApproval: conversionProbation.directorApproval === ApprovalStatus.Approved ? ApprovalStatus.Approved : ApprovalStatus.Pending,
+      headHRReview: ApprovalStatus.Pending,
+      contractDraftDate: todayStr,
+      contractSentDate: "",
+      signedDeadline: "",
+      signedReceivedDate: "",
+      contractStatus: ContractStatus.ContractDrafting,
+      salaryNegotiationStatus: "No Negotiation" as any,
+      hrPic: convHrPic,
+      notes: convNotes,
+      priority: "Low", // App sync will recalculate this
+      sourceProbationId: conversionProbation.id,
+      createdFrom: "probation-conversion"
+    };
+
+    // Update the probation record
+    const updatedProbation: ProbationItem = {
+      ...conversionProbation,
+      probationStatus: ProbationStatus.ConvertedToContract,
+      finalDecision: "Converted to Contract",
+      newEmploymentStatus: "Contract",
+      linkedContractId: newContractId,
+      notes: `${conversionProbation.notes || ""}\n[System Note: Converted to Contract on ${todayStr}. Contract record created.]`.trim()
+    };
+
+    onConvertProbationToContract(newContract, updatedProbation);
+    setConversionProbation(null);
+    alert(`Success! ${conversionProbation.employeeName} has been converted to Contract tracker.`);
+  };
   const [selectedDept, setSelectedDept] = useState("All Departments");
   const [selectedStatus, setSelectedStatus] = useState("All Statuses");
   const [selectedPriority, setSelectedPriority] = useState("All Priorities");
@@ -445,6 +626,36 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                                   <span className="text-slate-400 text-xs">New Contract Status:</span>
                                   <span className="font-semibold text-indigo-700">{p.newEmploymentStatus || "-"}</span>
                                 </div>
+                                {p.linkedContractId ? (
+                                  <div className="mt-2.5 pt-2 border-t border-slate-100 space-y-1.5">
+                                    <span className="text-[10px] text-slate-400 uppercase tracking-wider font-mono font-bold block">Linked Contract</span>
+                                    {(() => {
+                                      const linkedContract = contracts?.find(c => c.id === p.linkedContractId);
+                                      return (
+                                        <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-50 border border-indigo-150 text-indigo-800 text-xs font-semibold">
+                                          <span className="h-1.5 w-1.5 rounded-full bg-indigo-600 animate-pulse shrink-0"></span>
+                                          <span>Contract Created ({linkedContract?.contractStatus || "Drafting"})</span>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                ) : (
+                                  (p.finalDecision === "Passed Probation" ||
+                                   p.finalDecision === "Converted to Contract" ||
+                                   p.newEmploymentStatus === "Contract" ||
+                                   p.probationStatus === ProbationStatus.PassedProbation ||
+                                   p.probationStatus === ProbationStatus.ConvertedToContract) && (
+                                    <div className="mt-3">
+                                      <button
+                                        onClick={() => startConversion(p)}
+                                        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg transition shadow-xs cursor-pointer"
+                                      >
+                                        <RefreshCw className="h-3 w-3 animate-spin" style={{ animationDuration: '3s' }} />
+                                        Convert to Contract
+                                      </button>
+                                    </div>
+                                  )
+                                )}
                               </div>
 
                               {/* Notes */}
@@ -470,6 +681,215 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
           </table>
         </div>
       </div>
+      {/* Conversion Modal (ARC 3.3) */}
+      {conversionProbation && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="conversion-modal">
+          <div className="bg-white rounded-2xl border border-slate-150 shadow-2xl max-w-xl w-full overflow-hidden transform transition-all">
+            {/* Modal Header */}
+            <div className="bg-slate-950 text-white px-6 py-4 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="h-8 w-8 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-bold">
+                  CONV
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm tracking-wide font-display">Convert Probation to PKWT Contract</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">ARC 3.3 Flow Engine</p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setConversionProbation(null)}
+                className="text-slate-400 hover:text-white transition p-1 hover:bg-slate-800 rounded-lg cursor-pointer animate-none"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Modal Form */}
+            <form onSubmit={handleConvertSubmit} className="p-6 space-y-4">
+              <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-3.5 text-xs text-indigo-950 flex gap-2.5">
+                <Info className="h-4 w-4 text-indigo-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Converting {conversionProbation.employeeName}</span>
+                  <p className="text-slate-500 mt-0.5 leading-normal">
+                    This will automatically create a new PKWT record in the Contracts tracker and flag this probation record as converted.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 max-h-[60vh] overflow-y-auto px-1">
+                {/* Employee Name */}
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Employee Name (Read-Only)</label>
+                  <input
+                    type="text"
+                    value={conversionProbation.employeeName}
+                    readOnly
+                    className="w-full px-3 py-2 border border-slate-200 bg-slate-50 text-slate-500 rounded-lg text-sm font-semibold outline-none"
+                  />
+                </div>
+
+                {/* Department */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Department</label>
+                  <input
+                    type="text"
+                    value={convDept}
+                    onChange={(e) => setConvDept(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
+                      convErrors.dept ? "border-rose-400" : "border-slate-200"
+                    }`}
+                  />
+                  {convErrors.dept && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.dept}</p>}
+                </div>
+
+                {/* Position */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Position</label>
+                  <input
+                    type="text"
+                    value={convPos}
+                    onChange={(e) => setConvPos(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
+                      convErrors.position ? "border-rose-400" : "border-slate-200"
+                    }`}
+                  />
+                  {convErrors.position && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.position}</p>}
+                </div>
+
+                {/* Direct Manager */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Direct Manager</label>
+                  <input
+                    type="text"
+                    value={convMgr}
+                    onChange={(e) => setConvMgr(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
+                      convErrors.manager ? "border-rose-400" : "border-slate-200"
+                    }`}
+                  />
+                  {convErrors.manager && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.manager}</p>}
+                </div>
+
+                {/* HR PIC */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">HR PIC</label>
+                  <select
+                    value={convHrPic}
+                    onChange={(e) => setConvHrPic(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  >
+                    {HR_PICS.filter(pic => pic !== "All HR PICs").map(pic => (
+                      <option key={pic} value={pic}>{pic}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Contract Type */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Contract Type</label>
+                  <input
+                    type="text"
+                    value={convContractType}
+                    onChange={(e) => setConvContractType(e.target.value)}
+                    placeholder="e.g. PKWT"
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
+                      convErrors.contractType ? "border-rose-400" : "border-slate-200"
+                    }`}
+                  />
+                  {convErrors.contractType && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.contractType}</p>}
+                </div>
+
+                {/* Contract Number */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Contract Number (Optional)</label>
+                  <input
+                    type="text"
+                    value={convContractNum}
+                    onChange={(e) => setConvContractNum(e.target.value)}
+                    placeholder="e.g. CN-001/HRD-PKWT/2026"
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  />
+                </div>
+
+                {/* Contract Start Date */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Contract Start Date</label>
+                  <input
+                    type="date"
+                    value={convStartDate}
+                    onChange={(e) => handleStartDateChange(e.target.value)}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none font-mono ${
+                      convErrors.startDate ? "border-rose-400" : "border-slate-200"
+                    }`}
+                  />
+                  {convErrors.startDate && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.startDate}</p>}
+                </div>
+
+                {/* Duration */}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Contract Duration</label>
+                  <select
+                    value={convDuration}
+                    onChange={(e) => handleDurationChange(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  >
+                    <option value="3 months">3 months</option>
+                    <option value="6 months">6 months</option>
+                    <option value="12 months">12 months</option>
+                    <option value="Custom">Custom (Specify manual End Date)</option>
+                  </select>
+                </div>
+
+                {/* Contract End Date */}
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Contract End Date</label>
+                  <input
+                    type="date"
+                    value={convEndDate}
+                    onChange={(e) => {
+                      setConvEndDate(e.target.value);
+                      setConvDuration("Custom");
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none font-mono ${
+                      convErrors.endDate ? "border-rose-400" : "border-slate-200"
+                    }`}
+                  />
+                  {convErrors.endDate && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.endDate}</p>}
+                </div>
+
+                {/* Notes */}
+                <div className="col-span-2">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Conversion Notes</label>
+                  <textarea
+                    rows={2}
+                    value={convNotes}
+                    onChange={(e) => setConvNotes(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setConversionProbation(null)}
+                  className="px-4 py-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-lg text-sm font-medium transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold transition shadow-md flex items-center gap-1.5 cursor-pointer"
+                >
+                  Convert & Create Contract
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

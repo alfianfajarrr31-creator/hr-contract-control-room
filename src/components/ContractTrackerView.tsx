@@ -507,6 +507,12 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                                 <div className="bg-slate-50 border border-slate-100 p-2.5 rounded-lg text-xs text-slate-600 h-28 overflow-y-auto font-mono">
                                   {c.notes || "No special HR notes entered for this contract yet."}
                                 </div>
+                                {c.createdFrom === "probation-conversion" && (
+                                  <div className="mt-2 bg-indigo-50 border border-indigo-100 text-indigo-700 px-2.5 py-1.5 rounded-lg text-[11px] font-medium flex items-center gap-1.5 font-sans">
+                                    <span className="h-2 w-2 rounded-full bg-indigo-500 animate-pulse"></span>
+                                    <span>Converted from Probation record {c.sourceProbationId && `(ID: ${c.sourceProbationId})`}</span>
+                                  </div>
+                                )}
                               </div>
 
                             </div>

@@ -101,6 +101,8 @@ export interface ContractItem {
   employeeContractEmailSentDate?: string;
   signedFollowUpEmailSentDate?: string;
   escalationEmailSentDate?: string;
+  sourceProbationId?: string;
+  createdFrom?: string;
 }
 
 export interface ProbationItem {
@@ -126,6 +128,7 @@ export interface ProbationItem {
   probationReviewEmailSentDate?: string;
   probationApprovalEmailSentDate?: string;
   escalationEmailSentDate?: string;
+  linkedContractId?: string;
 }
 
 // Master / Helper functions for auto calculating Priority and Days Remaining

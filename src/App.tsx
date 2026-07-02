@@ -218,6 +218,14 @@ export default function App() {
     setEditingProbation(null);
   };
 
+  // PROBATION TO CONTRACT CONVERSION (ARC 3.3)
+  const handleConvertProbationToContract = (newContract: ContractItem, updatedProbation: ProbationItem) => {
+    const updatedContracts = [newContract, ...contracts];
+    const updatedProbations = probations.map(p => p.id === updatedProbation.id ? updatedProbation : p);
+    syncWithStorage(updatedContracts, updatedProbations, simulationDate);
+    setActiveTab("contracts");
+  };
+
   const handleDeleteProbation = (id: string) => {
     const updated = probations.filter(p => p.id !== id);
     syncWithStorage(contracts, updated, simulationDate);
@@ -241,7 +249,8 @@ export default function App() {
       "Days Remaining", "Compensation Review Needed", "Negotiation Status", "Negotiation Notes", "Payroll Follow-Up Notes",
       "User Recommendation", "Director Approval", "Head HR Review",
       "Contract Draft Date", "Contract Sent Date", "Signed Deadline", "Signed Received Date",
-      "Contract Status", "Compensation Review Status", "HR PIC", "Priority", "Notes"
+      "Contract Status", "Compensation Review Status", "HR PIC", "Priority", "Notes",
+      "Created From", "Source Probation ID"
     ];
 
     const rows = items.map(c => [
@@ -250,7 +259,8 @@ export default function App() {
       c.daysRemaining, c.compensationReviewNeeded ? "Yes" : "No", c.negotiationStatus || "No Negotiation", (c.negotiationNotes || "").replace(/[\n,]/g, " "), (c.payrollFollowUpNotes || "").replace(/[\n,]/g, " "),
       c.userRecommendation, c.directorApproval, c.headHRReview,
       c.contractDraftDate, c.contractSentDate, c.signedDeadline, c.signedReceivedDate,
-      c.contractStatus, c.salaryNegotiationStatus, c.hrPic, c.priority, c.notes.replace(/[\n,]/g, " ")
+      c.contractStatus, c.salaryNegotiationStatus, c.hrPic, c.priority, c.notes.replace(/[\n,]/g, " "),
+      c.createdFrom || "", c.sourceProbationId || ""
     ]);
 
     const csvContent = [
@@ -267,14 +277,15 @@ export default function App() {
       "Employee ID", "Employee Name", "Department", "Position", "Direct Manager",
       "Probation Start Date", "Probation End Date", "Days Remaining", "Review Form Status",
       "User Recommendation", "Director Approval", "Final Decision", "New Employment Status",
-      "HR PIC", "Probation Status", "Priority", "Notes"
+      "HR PIC", "Probation Status", "Priority", "Notes", "Linked Contract ID"
     ];
 
     const rows = items.map(p => [
       p.employeeId, p.employeeName, p.department, p.position, p.directManager,
       p.probationStartDate, p.probationEndDate, p.daysRemaining, p.reviewFormStatus,
       p.userRecommendation, p.directorApproval, p.finalDecision, p.newEmploymentStatus,
-      p.hrPic, p.probationStatus, p.priority, p.notes.replace(/[\n,]/g, " ")
+      p.hrPic, p.probationStatus, p.priority, p.notes.replace(/[\n,]/g, " "),
+      p.linkedContractId || ""
     ]);
 
     const csvContent = [
@@ -521,6 +532,7 @@ export default function App() {
           {activeTab === "probation" && (
             <ProbationTrackerView
               probations={probations}
+              contracts={contracts}
               onAddProbation={() => {
                 setEditingProbation(null);
                 setActiveTab("add-probation");
@@ -531,6 +543,7 @@ export default function App() {
               }}
               onDeleteProbation={handleDeleteProbation}
               onExportCSV={handleExportProbations}
+              onConvertProbationToContract={handleConvertProbationToContract}
             />
           )}
 
