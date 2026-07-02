@@ -4,19 +4,23 @@ import {
   ContractStatus, 
   UserRecommendation, 
   ApprovalStatus, 
-  SalaryNegotiationStatus 
+  SalaryNegotiationStatus,
+  isContractNumberExists,
+  getNextContractSequence
 } from "../types";
 import { DEPARTMENTS, HR_PICS } from "../seedData";
 import { Save, ArrowLeft, AlertCircle } from "lucide-react";
 
 interface ContractFormProps {
   contractToEdit: ContractItem | null;
+  existingContracts?: ContractItem[];
   onSave: (contract: ContractItem) => void;
   onCancel: () => void;
 }
 
 export const ContractForm: React.FC<ContractFormProps> = ({
   contractToEdit,
+  existingContracts = [],
   onSave,
   onCancel
 }) => {
@@ -32,6 +36,26 @@ export const ContractForm: React.FC<ContractFormProps> = ({
   const [contractNumber, setContractNumber] = useState("");
   const [contractStartDate, setContractStartDate] = useState("");
   const [contractEndDate, setContractEndDate] = useState("");
+  
+  // Toast state
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (toastMessage) {
+      const timer = setTimeout(() => setToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastMessage]);
+
+  const handleAutoGenerateNumber = () => {
+    if (contractNumber.trim()) {
+      const confirmReplace = window.confirm("Nomor kontrak sudah terisi. Ganti dengan nomor urut terbaru?");
+      if (!confirmReplace) return;
+    }
+    const nextSeq = getNextContractSequence(existingContracts);
+    setContractNumber(nextSeq);
+    setToastMessage(`Generated contract number: ${nextSeq}`);
+  };
   
   // ARC 3.1 Non-nominal states
   const [compensationReviewNeeded, setCompensationReviewNeeded] = useState(false);
@@ -90,7 +114,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setPosition("");
       setDirectManager("");
       setContractType("PKWT I");
-      setContractNumber(`CN-${randomIdNum}/HRD-PKWT/${new Date().getFullYear()}`);
+      setContractNumber("");
       setContractStartDate("");
       setContractEndDate("");
       
@@ -129,6 +153,19 @@ export const ContractForm: React.FC<ContractFormProps> = ({
     if (!hrPic.trim() || hrPic === "All HR PICs") newErrors.hrPic = "Valid HR PIC is required";
     if (!contractStatus.trim()) newErrors.contractStatus = "Contract Status is required";
 
+    // Check for duplicate Contract Number (prevent save if duplicate)
+    const normNum = contractNumber.trim().toLowerCase();
+    if (normNum) {
+      const isDuplicate = existingContracts.some(c => 
+        c.contractNumber && 
+        c.contractNumber.trim().toLowerCase() === normNum && 
+        (!isEditMode || c.id !== contractToEdit?.id)
+      );
+      if (isDuplicate) {
+        newErrors.contractNumber = "Nomor kontrak ini sudah digunakan. Silakan generate nomor baru atau edit manual.";
+      }
+    }
+
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       // scroll to top of form
@@ -144,7 +181,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       position,
       directManager,
       contractType,
-      contractNumber: contractNumber || `CN-NEW/HRD/${new Date().getFullYear()}`,
+      contractNumber: contractNumber.trim(),
       contractStartDate,
       contractEndDate,
       daysRemaining: contractToEdit ? contractToEdit.daysRemaining : 0, // will be computed in App state on save
@@ -330,16 +367,36 @@ export const ContractForm: React.FC<ContractFormProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                Contract Number
+              <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5 flex justify-between items-center">
+                <span>Contract Number</span>
+                {contractNumber.trim() && isContractNumberExists(existingContracts, contractNumber) && (
+                  <span className="text-[10px] text-amber-600 font-medium normal-case">⚠️ Already in use</span>
+                )}
               </label>
-              <input
-                type="text"
-                value={contractNumber}
-                placeholder="e.g. 102/HRD-PKWT/VII/2026"
-                onChange={(e) => setContractNumber(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={contractNumber}
+                  placeholder="e.g. 001"
+                  onChange={(e) => setContractNumber(e.target.value)}
+                  className={`flex-1 px-3.5 py-2.5 border rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
+                    errors.contractNumber ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200"
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={handleAutoGenerateNumber}
+                  className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0 flex items-center gap-1"
+                >
+                  Auto Generate Nomor Urut
+                </button>
+              </div>
+              {toastMessage && (
+                <p className="text-[11px] text-indigo-600 font-medium mt-1">✓ {toastMessage}</p>
+              )}
+              {errors.contractNumber && (
+                <p className="text-xs text-rose-600 mt-1 leading-normal font-sans">{errors.contractNumber}</p>
+              )}
             </div>
 
             <div>

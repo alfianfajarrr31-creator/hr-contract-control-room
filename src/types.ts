@@ -233,3 +233,66 @@ export function computeProbationSLA(endDateStr: string, currentDecision: string,
     return { daysRemaining, priority: "Critical", suggestedStatus: "Critical" };
   }
 }
+
+// ARC 3.5 Auto-Generate Contract Sequence Helpers
+export function extractNumericContractNumber(contractNumber: string | null | undefined): number | null {
+  if (!contractNumber) return null;
+  const trimmed = contractNumber.trim();
+  if (!trimmed) return null;
+  
+  // Ambil hanya nomor yang murni numerik atau angka jelas
+  if (/^\d+$/.test(trimmed)) {
+    return parseInt(trimmed, 10);
+  }
+  return null;
+}
+
+export function detectContractNumberPadding(contractNumbers: string[]): number {
+  if (contractNumbers.length === 0) return 3;
+  const lengths = contractNumbers.map(cn => cn.length);
+  const counts: Record<number, number> = {};
+  let maxCount = 0;
+  let majorityLength = 3;
+  for (const len of lengths) {
+    counts[len] = (counts[len] || 0) + 1;
+    if (counts[len] > maxCount) {
+      maxCount = counts[len];
+      majorityLength = len;
+    }
+  }
+  return majorityLength;
+}
+
+export function isContractNumberExists(contracts: ContractItem[], contractNumber: string): boolean {
+  if (!contractNumber) return false;
+  const target = contractNumber.trim().toLowerCase();
+  return contracts.some(c => c.contractNumber && c.contractNumber.trim().toLowerCase() === target);
+}
+
+export function getNextContractSequence(contracts: ContractItem[]): string {
+  // Filter all contractNumber from Contract Tracker that are purely numeric
+  const validNumericStrings = contracts
+    .map(c => c.contractNumber)
+    .filter((cn): cn is string => !!cn)
+    .map(cn => cn.trim())
+    .filter(cn => /^\d+$/.test(cn));
+
+  // Detect majority padding length (e.g. 3 for "001")
+  const padding = detectContractNumberPadding(validNumericStrings);
+
+  let nextVal = 1;
+  if (validNumericStrings.length > 0) {
+    const numericValues = validNumericStrings.map(cn => parseInt(cn, 10));
+    const maxVal = Math.max(...numericValues);
+    nextVal = maxVal + 1;
+  }
+
+  // Ensure nextVal produces a unique contractNumber by raising it if it already exists
+  let candidate = String(nextVal).padStart(padding, "0");
+  while (isContractNumberExists(contracts, candidate)) {
+    nextVal++;
+    candidate = String(nextVal).padStart(padding, "0");
+  }
+
+  return candidate;
+}

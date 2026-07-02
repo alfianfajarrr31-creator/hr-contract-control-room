@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { 
   ProbationItem, 
   ProbationStatus, 
@@ -6,7 +6,9 @@ import {
   UserRecommendation, 
   ApprovalStatus,
   ContractItem,
-  ContractStatus
+  ContractStatus,
+  isContractNumberExists,
+  getNextContractSequence
 } from "../types";
 import { 
   Search, 
@@ -65,6 +67,26 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   const [convNotes, setConvNotes] = useState("Converted from probation record. Awaiting contract drafting.");
   const [convErrors, setConvErrors] = useState<Record<string, string>>({});
 
+  // Toast state for conversion contract number auto-generation (ARC 3.5)
+  const [convToastMessage, setConvToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (convToastMessage) {
+      const timer = setTimeout(() => setConvToastMessage(null), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [convToastMessage]);
+
+  const handleAutoGenerateConvNumber = () => {
+    if (convContractNum.trim()) {
+      const confirmReplace = window.confirm("Nomor kontrak sudah terisi. Ganti dengan nomor urut terbaru?");
+      if (!confirmReplace) return;
+    }
+    const nextSeq = getNextContractSequence(contracts);
+    setConvContractNum(nextSeq);
+    setConvToastMessage(`Generated contract number: ${nextSeq}`);
+  };
+
   const calculateEndDate = (start: string, duration: string): string => {
     if (!start) return "";
     const d = new Date(start);
@@ -113,9 +135,8 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
     const end = calculateEndDate(defaultStart, "12 months");
     setConvEndDate(end);
     
-    // contract number placeholder
-    const randomIdNum = Math.floor(100 + Math.random() * 900);
-    setConvContractNum(`CN-${randomIdNum}/HRD-PKWT/${new Date().getFullYear()}`);
+    // contract number is empty initially on open
+    setConvContractNum("");
     
     setConvHrPic(p.hrPic || HR_PICS[0] || "Siti Rahma");
     setConvNotes("Converted from probation record. Awaiting contract drafting.");
@@ -161,6 +182,18 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
     if (!convEndDate) errors.endDate = "End Date is required";
     if (!convHrPic.trim()) errors.hrPic = "HR PIC is required";
 
+    // Duplicate Contract Number prevention
+    const normNum = convContractNum.trim().toLowerCase();
+    if (normNum) {
+      const isDuplicate = contracts?.some(c => 
+        c.contractNumber && 
+        c.contractNumber.trim().toLowerCase() === normNum
+      );
+      if (isDuplicate) {
+        errors.contractNum = "Nomor kontrak ini sudah digunakan. Silakan generate nomor baru atau edit manual.";
+      }
+    }
+
     if (Object.keys(errors).length > 0) {
       setConvErrors(errors);
       return;
@@ -185,7 +218,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
       position: convPos,
       directManager: convMgr,
       contractType: convContractType,
-      contractNumber: convContractNum || `CN-${Math.floor(100 + Math.random() * 900)}/HRD/${new Date().getFullYear()}`,
+      contractNumber: convContractNum.trim(),
       contractStartDate: convStartDate,
       contractEndDate: convEndDate,
       daysRemaining: 0, // App sync will recalculate this
@@ -801,15 +834,37 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                 </div>
 
                 {/* Contract Number */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Contract Number (Optional)</label>
-                  <input
-                    type="text"
-                    value={convContractNum}
-                    onChange={(e) => setConvContractNum(e.target.value)}
-                    placeholder="e.g. CN-001/HRD-PKWT/2026"
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
-                  />
+                <div className="col-span-2 md:col-span-1">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono flex justify-between items-center">
+                    <span>Contract Number</span>
+                    {convContractNum.trim() && isContractNumberExists(contracts, convContractNum) && (
+                      <span className="text-[10px] text-amber-600 font-medium normal-case">⚠️ Already in use</span>
+                    )}
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={convContractNum}
+                      onChange={(e) => setConvContractNum(e.target.value)}
+                      placeholder="e.g. 001"
+                      className={`flex-1 px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none font-mono ${
+                        convErrors.contractNum ? "border-rose-400" : "border-slate-200"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAutoGenerateConvNumber}
+                      className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 hover:border-indigo-300 rounded-lg text-xs font-semibold cursor-pointer transition shrink-0"
+                    >
+                      Auto Generate Nomor Urut
+                    </button>
+                  </div>
+                  {convToastMessage && (
+                    <p className="text-[10px] text-indigo-600 font-medium mt-1">✓ {convToastMessage}</p>
+                  )}
+                  {convErrors.contractNum && (
+                    <p className="text-rose-500 text-[10px] mt-0.5 font-sans leading-normal">{convErrors.contractNum}</p>
+                  )}
                 </div>
 
                 {/* Contract Start Date */}

@@ -724,6 +724,7 @@ export default function App() {
           {activeTab === "add-contract" && (
             <ContractForm
               contractToEdit={null}
+              existingContracts={contracts}
               onSave={handleSaveContract}
               onCancel={() => setActiveTab("contracts")}
             />
@@ -732,6 +733,7 @@ export default function App() {
           {activeTab === "edit-contract" && (
             <ContractForm
               contractToEdit={editingContract}
+              existingContracts={contracts}
               onSave={handleSaveContract}
               onCancel={() => setActiveTab("contracts")}
             />
