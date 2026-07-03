@@ -35,6 +35,8 @@ interface ProbationTrackerViewProps {
   probations: ProbationItem[];
   contracts: ContractItem[];
   hrPics: string[];
+  departments: string[];
+  directManagers: string[];
   onAddProbation: () => void;
   onEditProbation: (probation: ProbationItem) => void;
   onDeleteProbation: (id: string) => void;
@@ -46,6 +48,8 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   probations,
   contracts,
   hrPics,
+  departments,
+  directManagers,
   onAddProbation,
   onEditProbation,
   onDeleteProbation,
@@ -259,6 +263,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
     alert(`Success! ${conversionProbation.employeeName} has been converted to Contract tracker.`);
   };
   const [selectedDept, setSelectedDept] = useState("All Departments");
+  const [selectedManager, setSelectedManager] = useState("All Direct Managers");
   const [selectedStatus, setSelectedStatus] = useState("All Statuses");
   const [selectedPriority, setSelectedPriority] = useState("All Priorities");
   const [selectedPIC, setSelectedPIC] = useState("All HR PICs");
@@ -281,11 +286,12 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                           p.position.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesDept = selectedDept === "All Departments" || p.department === selectedDept;
+    const matchesManager = selectedManager === "All Direct Managers" || p.directManager === selectedManager;
     const matchesStatus = selectedStatus === "All Statuses" || p.probationStatus === selectedStatus;
     const matchesPriority = selectedPriority === "All Priorities" || p.priority === selectedPriority;
     const matchesPIC = selectedPIC === "All HR PICs" || p.hrPic === selectedPIC;
 
-    return matchesSearch && matchesDept && matchesStatus && matchesPriority && matchesPIC;
+    return matchesSearch && matchesDept && matchesManager && matchesStatus && matchesPriority && matchesPIC;
   }).sort((a, b) => {
     const dateA = new Date(a.probationEndDate).getTime();
     const dateB = new Date(b.probationEndDate).getTime();
@@ -295,6 +301,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   const resetFilters = () => {
     setSearchTerm("");
     setSelectedDept("All Departments");
+    setSelectedManager("All Direct Managers");
     setSelectedStatus("All Statuses");
     setSelectedPriority("All Priorities");
     setSelectedPIC("All HR PICs");
@@ -387,7 +394,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
             <Filter className="h-4 w-4 text-slate-500" />
             Filters & Search
           </h3>
-          {(searchTerm || selectedDept !== "All Departments" || selectedStatus !== "All Statuses" || selectedPriority !== "All Priorities" || selectedPIC !== "All HR PICs") && (
+          {(searchTerm || selectedDept !== "All Departments" || selectedManager !== "All Direct Managers" || selectedStatus !== "All Statuses" || selectedPriority !== "All Priorities" || selectedPIC !== "All HR PICs") && (
             <button
               onClick={resetFilters}
               className="text-xs text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1 cursor-pointer"
@@ -398,7 +405,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search bar */}
           <div className="relative">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Search</label>
@@ -406,7 +413,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="ID, Name, or Position..."
+                placeholder="ID, Name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition outline-none"
@@ -422,8 +429,24 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
               onChange={(e) => setSelectedDept(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition outline-none"
             >
-              {DEPARTMENTS.map(dept => (
+              <option value="All Departments">All Departments</option>
+              {departments.map(dept => (
                 <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Direct Manager Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Direct Manager</label>
+            <select
+              value={selectedManager}
+              onChange={(e) => setSelectedManager(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition outline-none"
+            >
+              <option value="All Direct Managers">All Direct Managers</option>
+              {directManagers.map(mgr => (
+                <option key={mgr} value={mgr}>{mgr}</option>
               ))}
             </select>
           </div>
@@ -768,13 +791,18 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Department</label>
                   <input
-                    type="text"
+                    list="conv-department-list"
                     value={convDept}
                     onChange={(e) => setConvDept(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
                       convErrors.dept ? "border-rose-400" : "border-slate-200"
                     }`}
                   />
+                  <datalist id="conv-department-list">
+                    {departments.map(dept => (
+                      <option key={dept} value={dept} />
+                    ))}
+                  </datalist>
                   {convErrors.dept && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.dept}</p>}
                 </div>
 
@@ -796,13 +824,18 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                 <div>
                   <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1 font-mono">Direct Manager</label>
                   <input
-                    type="text"
+                    list="conv-manager-list"
                     value={convMgr}
                     onChange={(e) => setConvMgr(e.target.value)}
-                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
+                    className={`w-full px-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none ${
                       convErrors.manager ? "border-rose-400" : "border-slate-200"
                     }`}
                   />
+                  <datalist id="conv-manager-list">
+                    {directManagers.map(mgr => (
+                      <option key={mgr} value={mgr} />
+                    ))}
+                  </datalist>
                   {convErrors.manager && <p className="text-rose-500 text-[10px] mt-0.5">{convErrors.manager}</p>}
                 </div>
 

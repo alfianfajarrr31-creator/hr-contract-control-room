@@ -15,6 +15,8 @@ interface ContractFormProps {
   contractToEdit: ContractItem | null;
   existingContracts?: ContractItem[];
   hrPics: string[];
+  departments: string[];
+  directManagers: string[];
   onSave: (contract: ContractItem) => void;
   onCancel: () => void;
 }
@@ -23,6 +25,8 @@ export const ContractForm: React.FC<ContractFormProps> = ({
   contractToEdit,
   existingContracts = [],
   hrPics,
+  departments,
+  directManagers,
   onSave,
   onCancel
 }) => {
@@ -31,7 +35,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
   // Form State
   const [employeeId, setEmployeeId] = useState("");
   const [employeeName, setEmployeeName] = useState("");
-  const [department, setDepartment] = useState("Engineering");
+  const [department, setDepartment] = useState("");
   const [position, setPosition] = useState("");
   const [directManager, setDirectManager] = useState("");
   const [contractType, setContractType] = useState("PKWT I");
@@ -112,9 +116,9 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       const randomIdNum = Math.floor(100 + Math.random() * 900);
       setEmployeeId(`EMP-${randomIdNum}`);
       setEmployeeName("");
-      setDepartment(DEPARTMENTS[1] || "Engineering");
+      setDepartment(departments[0] || "HR");
       setPosition("");
-      setDirectManager("");
+      setDirectManager(directManagers[0] || "");
       setContractType("PKWT I");
       setContractNumber("");
       setContractStartDate("");
@@ -284,15 +288,21 @@ export const ContractForm: React.FC<ContractFormProps> = ({
               <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
                 Department <span className="text-rose-500">*</span>
               </label>
-              <select
+              <input
+                list="department-list"
                 value={department}
+                placeholder="Select or type department..."
                 onChange={(e) => setDepartment(e.target.value)}
-                className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
-              >
-                {DEPARTMENTS.filter(d => d !== "All Departments").map(dept => (
-                  <option key={dept} value={dept}>{dept}</option>
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm bg-white transition outline-none ${
+                  errors.department ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                }`}
+              />
+              <datalist id="department-list">
+                {departments.map(dept => (
+                  <option key={dept} value={dept} />
                 ))}
-              </select>
+              </datalist>
+              {errors.department && <p className="text-xs text-rose-600 mt-1">{errors.department}</p>}
             </div>
 
             <div>
@@ -316,14 +326,19 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                 Direct Manager <span className="text-rose-500">*</span>
               </label>
               <input
-                type="text"
+                list="manager-list"
                 value={directManager}
-                placeholder="e.g. Budi Santoso"
+                placeholder="Select or type direct manager..."
                 onChange={(e) => setDirectManager(e.target.value)}
-                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm transition outline-none ${
+                className={`w-full px-3.5 py-2.5 border rounded-lg text-sm bg-white transition outline-none ${
                   errors.directManager ? "border-rose-500 focus:ring-2 focus:ring-rose-500/20" : "border-slate-200 focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
                 }`}
               />
+              <datalist id="manager-list">
+                {directManagers.map(mgr => (
+                  <option key={mgr} value={mgr} />
+                ))}
+              </datalist>
               {errors.directManager && <p className="text-xs text-rose-600 mt-1">{errors.directManager}</p>}
             </div>
 

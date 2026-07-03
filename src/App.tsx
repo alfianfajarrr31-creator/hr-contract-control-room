@@ -46,6 +46,10 @@ export default function App() {
   
   // HR PIC Master List State
   const [hrPics, setHrPics] = useState<string[]>([]);
+
+  // Department and Direct Manager Master List States (ARC 3.7)
+  const [departments, setDepartments] = useState<string[]>([]);
+  const [directManagers, setDirectManagers] = useState<string[]>([]);
   
   // Simulation Date (defaulting dynamically to today's date)
   const [simulationDate, setSimulationDate] = useState<string>(getTodayDateStr());
@@ -159,8 +163,57 @@ export default function App() {
       initialPics = Array.from(collected).filter(p => p && p.toLowerCase() !== "all hr pics");
       localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(initialPics));
     }
-
     setHrPics(initialPics);
+
+    // Load Department list (ARC 3.7)
+    const savedDeptStr = localStorage.getItem("hrcc_department_list");
+    let initialDepts: string[] = [];
+    if (savedDeptStr) {
+      try {
+        initialDepts = JSON.parse(savedDeptStr);
+      } catch (e) {
+        initialDepts = [];
+      }
+    }
+
+    if (!initialDepts || initialDepts.length === 0) {
+      const collected = new Set<string>();
+      const defaultDepts = ["HR", "Finance", "Operations", "Sales", "Marketing", "IT", "Customer Service", "Warehouse", "Airport", "General Affairs"];
+      defaultDepts.forEach(d => collected.add(d.trim()));
+
+      // Merge from existing contracts and probations
+      updatedContracts.forEach(c => { if (c.department) collected.add(c.department.trim()); });
+      updatedProbations.forEach(p => { if (p.department) collected.add(p.department.trim()); });
+
+      initialDepts = Array.from(collected).filter(d => d && d.toLowerCase() !== "all departments");
+      localStorage.setItem("hrcc_department_list", JSON.stringify(initialDepts));
+    }
+    setDepartments(initialDepts);
+
+    // Load Direct Manager list (ARC 3.7)
+    const savedMgrStr = localStorage.getItem("hrcc_direct_manager_list");
+    let initialMgrs: string[] = [];
+    if (savedMgrStr) {
+      try {
+        initialMgrs = JSON.parse(savedMgrStr);
+      } catch (e) {
+        initialMgrs = [];
+      }
+    }
+
+    if (!initialMgrs || initialMgrs.length === 0) {
+      const collected = new Set<string>();
+      const defaultMgrs = ["Management", "Head HR", "Direct Manager", "User", "Department Head"];
+      defaultMgrs.forEach(m => collected.add(m.trim()));
+
+      // Merge from existing contracts and probations
+      updatedContracts.forEach(c => { if (c.directManager) collected.add(c.directManager.trim()); });
+      updatedProbations.forEach(p => { if (p.directManager) collected.add(p.directManager.trim()); });
+
+      initialMgrs = Array.from(collected).filter(m => m && m.toLowerCase() !== "all direct managers");
+      localStorage.setItem("hrcc_direct_manager_list", JSON.stringify(initialMgrs));
+    }
+    setDirectManagers(initialMgrs);
   }, []);
 
   // Save data to localStorage whenever core data changes, but we'll also update priority/days based on date
@@ -207,6 +260,48 @@ export default function App() {
       if (changed) {
         localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(nextPics));
         return nextPics;
+      }
+      return prev;
+    });
+
+    // Auto-scan for any new Departments that aren't currently in departments and add them! (ARC 3.7)
+    const uniqueNewDepts = new Set<string>();
+    finalC.forEach(c => { if (c.department) uniqueNewDepts.add(c.department.trim()); });
+    finalP.forEach(p => { if (p.department) uniqueNewDepts.add(p.department.trim()); });
+
+    setDepartments(prev => {
+      let changed = false;
+      const nextDepts = [...prev];
+      uniqueNewDepts.forEach(dept => {
+        if (dept && dept.toLowerCase() !== "all departments" && !nextDepts.some(d => d.trim().toLowerCase() === dept.toLowerCase())) {
+          nextDepts.push(dept);
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem("hrcc_department_list", JSON.stringify(nextDepts));
+        return nextDepts;
+      }
+      return prev;
+    });
+
+    // Auto-scan for any new Direct Managers that aren't currently in directManagers and add them! (ARC 3.7)
+    const uniqueNewMgrs = new Set<string>();
+    finalC.forEach(c => { if (c.directManager) uniqueNewMgrs.add(c.directManager.trim()); });
+    finalP.forEach(p => { if (p.directManager) uniqueNewMgrs.add(p.directManager.trim()); });
+
+    setDirectManagers(prev => {
+      let changed = false;
+      const nextMgrs = [...prev];
+      uniqueNewMgrs.forEach(mgr => {
+        if (mgr && mgr.toLowerCase() !== "all direct managers" && !nextMgrs.some(m => m.trim().toLowerCase() === mgr.toLowerCase())) {
+          nextMgrs.push(mgr);
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem("hrcc_direct_manager_list", JSON.stringify(nextMgrs));
+        return nextMgrs;
       }
       return prev;
     });
@@ -285,6 +380,142 @@ export default function App() {
     const updatedPics = hrPics.filter(pic => pic.trim().toLowerCase() !== trimmed.toLowerCase());
     setHrPics(updatedPics);
     localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(updatedPics));
+  };
+
+  // Department Management Handlers (ARC 3.7)
+  const handleAddDepartment = (name: string): string | null => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return "Nama Department tidak boleh kosong.";
+    }
+    if (trimmed.toLowerCase() === "all departments") {
+      return "Nama 'All Departments' dicadangkan untuk filter sistem.";
+    }
+    const isDuplicate = departments.some(d => d.trim().toLowerCase() === trimmed.toLowerCase());
+    if (isDuplicate) {
+      return "Department sudah terdaftar di master list (tidak boleh duplikat).";
+    }
+
+    const updated = [...departments, trimmed];
+    setDepartments(updated);
+    localStorage.setItem("hrcc_department_list", JSON.stringify(updated));
+    return null;
+  };
+
+  const handleEditDepartment = (oldName: string, newName: string): string | null => {
+    const trimmedOld = oldName.trim();
+    const trimmedNew = newName.trim();
+    if (!trimmedNew) {
+      return "Nama Department baru tidak boleh kosong.";
+    }
+    if (trimmedNew.toLowerCase() === "all departments") {
+      return "Nama 'All Departments' dicadangkan untuk filter sistem.";
+    }
+    if (trimmedOld.toLowerCase() === trimmedNew.toLowerCase()) {
+      return null; // No change needed
+    }
+    const isDuplicate = departments.some(d => d.trim().toLowerCase() === trimmedNew.toLowerCase() && d.trim().toLowerCase() !== trimmedOld.toLowerCase());
+    if (isDuplicate) {
+      return "Nama Department baru sudah terdaftar di master list.";
+    }
+
+    // 1. Update in master list
+    const updatedDepts = departments.map(d => d.trim().toLowerCase() === trimmedOld.toLowerCase() ? trimmedNew : d);
+    setDepartments(updatedDepts);
+    localStorage.setItem("hrcc_department_list", JSON.stringify(updatedDepts));
+
+    // 2. Cascade update in contracts and probations
+    const updatedC = contracts.map(c => {
+      if (c.department && c.department.trim().toLowerCase() === trimmedOld.toLowerCase()) {
+        return { ...c, department: trimmedNew };
+      }
+      return c;
+    });
+
+    const updatedP = probations.map(p => {
+      if (p.department && p.department.trim().toLowerCase() === trimmedOld.toLowerCase()) {
+        return { ...p, department: trimmedNew };
+      }
+      return p;
+    });
+
+    syncWithStorage(updatedC, updatedP, simulationDate);
+    return null;
+  };
+
+  const handleDeleteDepartment = (name: string) => {
+    const trimmed = name.trim();
+    const updatedDepts = departments.filter(d => d.trim().toLowerCase() !== trimmed.toLowerCase());
+    setDepartments(updatedDepts);
+    localStorage.setItem("hrcc_department_list", JSON.stringify(updatedDepts));
+  };
+
+  // Direct Manager Management Handlers (ARC 3.7)
+  const handleAddDirectManager = (name: string): string | null => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return "Nama Direct Manager tidak boleh kosong.";
+    }
+    if (trimmed.toLowerCase() === "all direct managers") {
+      return "Nama 'All Direct Managers' dicadangkan untuk filter sistem.";
+    }
+    const isDuplicate = directManagers.some(m => m.trim().toLowerCase() === trimmed.toLowerCase());
+    if (isDuplicate) {
+      return "Direct Manager sudah terdaftar di master list (tidak boleh duplikat).";
+    }
+
+    const updated = [...directManagers, trimmed];
+    setDirectManagers(updated);
+    localStorage.setItem("hrcc_direct_manager_list", JSON.stringify(updated));
+    return null;
+  };
+
+  const handleEditDirectManager = (oldName: string, newName: string): string | null => {
+    const trimmedOld = oldName.trim();
+    const trimmedNew = newName.trim();
+    if (!trimmedNew) {
+      return "Nama Direct Manager baru tidak boleh kosong.";
+    }
+    if (trimmedNew.toLowerCase() === "all direct managers") {
+      return "Nama 'All Direct Managers' dicadangkan untuk filter sistem.";
+    }
+    if (trimmedOld.toLowerCase() === trimmedNew.toLowerCase()) {
+      return null; // No change needed
+    }
+    const isDuplicate = directManagers.some(m => m.trim().toLowerCase() === trimmedNew.toLowerCase() && m.trim().toLowerCase() !== trimmedOld.toLowerCase());
+    if (isDuplicate) {
+      return "Nama Direct Manager baru sudah terdaftar di master list.";
+    }
+
+    // 1. Update in master list
+    const updatedMgrs = directManagers.map(m => m.trim().toLowerCase() === trimmedOld.toLowerCase() ? trimmedNew : m);
+    setDirectManagers(updatedMgrs);
+    localStorage.setItem("hrcc_direct_manager_list", JSON.stringify(updatedMgrs));
+
+    // 2. Cascade update in contracts and probations
+    const updatedC = contracts.map(c => {
+      if (c.directManager && c.directManager.trim().toLowerCase() === trimmedOld.toLowerCase()) {
+        return { ...c, directManager: trimmedNew };
+      }
+      return c;
+    });
+
+    const updatedP = probations.map(p => {
+      if (p.directManager && p.directManager.trim().toLowerCase() === trimmedOld.toLowerCase()) {
+        return { ...p, directManager: trimmedNew };
+      }
+      return p;
+    });
+
+    syncWithStorage(updatedC, updatedP, simulationDate);
+    return null;
+  };
+
+  const handleDeleteDirectManager = (name: string) => {
+    const trimmed = name.trim();
+    const updatedMgrs = directManagers.filter(m => m.trim().toLowerCase() !== trimmed.toLowerCase());
+    setDirectManagers(updatedMgrs);
+    localStorage.setItem("hrcc_direct_manager_list", JSON.stringify(updatedMgrs));
   };
 
   // Reset all to original seeds
@@ -801,6 +1032,8 @@ export default function App() {
             <ContractTrackerView
               contracts={contracts}
               hrPics={hrPics}
+              departments={departments}
+              directManagers={directManagers}
               onAddContract={() => {
                 setEditingContract(null);
                 setActiveTab("add-contract");
@@ -819,6 +1052,8 @@ export default function App() {
               probations={probations}
               contracts={contracts}
               hrPics={hrPics}
+              departments={departments}
+              directManagers={directManagers}
               onAddProbation={() => {
                 setEditingProbation(null);
                 setActiveTab("add-probation");
@@ -841,6 +1076,14 @@ export default function App() {
               onAddHrPic={handleAddHrPic}
               onEditHrPic={handleEditHrPic}
               onDeleteHrPic={handleDeleteHrPic}
+              departments={departments}
+              onAddDepartment={handleAddDepartment}
+              onEditDepartment={handleEditDepartment}
+              onDeleteDepartment={handleDeleteDepartment}
+              directManagers={directManagers}
+              onAddDirectManager={handleAddDirectManager}
+              onEditDirectManager={handleEditDirectManager}
+              onDeleteDirectManager={handleDeleteDirectManager}
               onClearSampleData={handleClearSampleData}
               onClearAllData={handleClearAllData}
               onResetToSampleData={handleResetToSampleData}
@@ -852,6 +1095,8 @@ export default function App() {
               contractToEdit={null}
               existingContracts={contracts}
               hrPics={hrPics}
+              departments={departments}
+              directManagers={directManagers}
               onSave={handleSaveContract}
               onCancel={() => setActiveTab("contracts")}
             />
@@ -862,6 +1107,8 @@ export default function App() {
               contractToEdit={editingContract}
               existingContracts={contracts}
               hrPics={hrPics}
+              departments={departments}
+              directManagers={directManagers}
               onSave={handleSaveContract}
               onCancel={() => setActiveTab("contracts")}
             />
@@ -871,6 +1118,8 @@ export default function App() {
             <ProbationForm
               probationToEdit={null}
               hrPics={hrPics}
+              departments={departments}
+              directManagers={directManagers}
               onSave={handleSaveProbation}
               onCancel={() => setActiveTab("probation")}
             />
@@ -880,6 +1129,8 @@ export default function App() {
             <ProbationForm
               probationToEdit={editingProbation}
               hrPics={hrPics}
+              departments={departments}
+              directManagers={directManagers}
               onSave={handleSaveProbation}
               onCancel={() => setActiveTab("probation")}
             />

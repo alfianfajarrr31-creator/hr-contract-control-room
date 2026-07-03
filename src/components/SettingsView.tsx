@@ -34,6 +34,14 @@ interface SettingsViewProps {
   onAddHrPic: (name: string) => string | null;
   onEditHrPic: (oldName: string, newName: string) => string | null;
   onDeleteHrPic: (name: string) => void;
+  departments: string[];
+  onAddDepartment: (name: string) => string | null;
+  onEditDepartment: (oldName: string, newName: string) => string | null;
+  onDeleteDepartment: (name: string) => void;
+  directManagers: string[];
+  onAddDirectManager: (name: string) => string | null;
+  onEditDirectManager: (oldName: string, newName: string) => string | null;
+  onDeleteDirectManager: (name: string) => void;
   onClearSampleData: () => void;
   onClearAllData: () => void;
   onResetToSampleData: () => void;
@@ -46,6 +54,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onAddHrPic,
   onEditHrPic,
   onDeleteHrPic,
+  departments,
+  onAddDepartment,
+  onEditDepartment,
+  onDeleteDepartment,
+  directManagers,
+  onAddDirectManager,
+  onEditDirectManager,
+  onDeleteDirectManager,
   onClearSampleData,
   onClearAllData,
   onResetToSampleData
@@ -59,6 +75,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [editInputValue, setEditInputValue] = useState("");
   const [editError, setEditError] = useState<string | null>(null);
   
+  // Department Management state
+  const [newDeptName, setNewDeptName] = useState("");
+  const [addDeptError, setAddDeptError] = useState<string | null>(null);
+  const [editingDeptName, setEditingDeptName] = useState<string | null>(null);
+  const [editDeptInputValue, setEditDeptInputValue] = useState("");
+  const [editDeptError, setEditDeptError] = useState<string | null>(null);
+
+  // Direct Manager Management state
+  const [newManagerName, setNewManagerName] = useState("");
+  const [addManagerError, setAddManagerError] = useState<string | null>(null);
+  const [editingManagerName, setEditingManagerName] = useState<string | null>(null);
+  const [editManagerInputValue, setEditManagerInputValue] = useState("");
+  const [editManagerError, setEditManagerError] = useState<string | null>(null);
+
   // Deleting confirmation state
   const [deletingPic, setDeletingPic] = useState<string | null>(null);
   
@@ -93,6 +123,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     const norm = pic.trim().toLowerCase();
     const cCount = contracts.filter(c => c.hrPic && c.hrPic.trim().toLowerCase() === norm).length;
     const pCount = probations.filter(p => p.hrPic && p.hrPic.trim().toLowerCase() === norm).length;
+    return { cCount, pCount };
+  };
+
+  const getDeptUsageCount = (deptName: string) => {
+    const norm = deptName.trim().toLowerCase();
+    const cCount = contracts.filter(c => c.department && c.department.trim().toLowerCase() === norm).length;
+    const pCount = probations.filter(p => p.department && p.department.trim().toLowerCase() === norm).length;
+    return { cCount, pCount };
+  };
+
+  const getManagerUsageCount = (mgrName: string) => {
+    const norm = mgrName.trim().toLowerCase();
+    const cCount = contracts.filter(c => c.directManager && c.directManager.trim().toLowerCase() === norm).length;
+    const pCount = probations.filter(p => p.directManager && p.directManager.trim().toLowerCase() === norm).length;
     return { cCount, pCount };
   };
 
@@ -136,6 +180,78 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         onDeleteHrPic(pic);
         setSuccessMessage(`Berhasil menghapus HR PIC "${pic}"`);
       }
+    }
+  };
+
+  const handleAddDeptSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddDeptError(null);
+    setSuccessMessage(null);
+    
+    const err = onAddDepartment(newDeptName);
+    if (err) {
+      setAddDeptError(err);
+    } else {
+      setSuccessMessage(`Berhasil menambahkan Department "${newDeptName.trim()}"`);
+      setNewDeptName("");
+    }
+  };
+
+  const handleSaveEditDeptSubmit = (dept: string) => {
+    setEditDeptError(null);
+    setSuccessMessage(null);
+    
+    const err = onEditDepartment(dept, editDeptInputValue);
+    if (err) {
+      setEditDeptError(err);
+    } else {
+      setSuccessMessage(`Nama Department "${dept}" berhasil diubah menjadi "${editDeptInputValue.trim()}"`);
+      setEditingDeptName(null);
+      setEditDeptInputValue("");
+    }
+  };
+
+  const handleDeleteDeptClick = (dept: string) => {
+    setSuccessMessage(null);
+    if (confirm(`Apakah Anda yakin ingin menghapus Department "${dept}"?`)) {
+      onDeleteDepartment(dept);
+      setSuccessMessage(`Berhasil menghapus Department "${dept}"`);
+    }
+  };
+
+  const handleAddManagerSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddManagerError(null);
+    setSuccessMessage(null);
+    
+    const err = onAddDirectManager(newManagerName);
+    if (err) {
+      setAddManagerError(err);
+    } else {
+      setSuccessMessage(`Berhasil menambahkan Direct Manager "${newManagerName.trim()}"`);
+      setNewManagerName("");
+    }
+  };
+
+  const handleSaveEditManagerSubmit = (mgr: string) => {
+    setEditManagerError(null);
+    setSuccessMessage(null);
+    
+    const err = onEditDirectManager(mgr, editManagerInputValue);
+    if (err) {
+      setEditManagerError(err);
+    } else {
+      setSuccessMessage(`Nama Direct Manager "${mgr}" berhasil diubah menjadi "${editManagerInputValue.trim()}"`);
+      setEditingManagerName(null);
+      setEditManagerInputValue("");
+    }
+  };
+
+  const handleDeleteManagerClick = (mgr: string) => {
+    setSuccessMessage(null);
+    if (confirm(`Apakah Anda yakin ingin menghapus Direct Manager "${mgr}"?`)) {
+      onDeleteDirectManager(mgr);
+      setSuccessMessage(`Berhasil menghapus Direct Manager "${mgr}"`);
     }
   };
 
@@ -283,6 +399,214 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                     );
                   })}
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Department Management Section */}
+        <div className="bg-white border border-slate-150 rounded-xl p-5 shadow-xs space-y-4">
+          <h3 className="font-semibold text-slate-900 font-display flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+            <Sliders className="h-5 w-5 text-indigo-600" />
+            Department Management
+          </h3>
+          <p className="text-xs text-slate-500">
+            Kelola daftar master Department untuk penugasan divisi karyawan.
+          </p>
+
+          <form onSubmit={handleAddDeptSubmit} className="space-y-2 pt-1">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Tambah Department Baru</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Contoh: IT"
+                value={newDeptName}
+                onChange={(e) => { setNewDeptName(e.target.value); setAddDeptError(null); }}
+                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1 shrink-0 cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Tambah
+              </button>
+            </div>
+            {addDeptError && <p className="text-[11px] text-rose-600 font-medium">{addDeptError}</p>}
+          </form>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Daftar Master Department ({departments.length})</label>
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
+              <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-150">
+                {departments.map(dept => {
+                  const { cCount, pCount } = getDeptUsageCount(dept);
+                  const isEditing = editingDeptName === dept;
+
+                  return (
+                    <div key={dept} className="flex items-center justify-between p-3 bg-white hover:bg-slate-50/50 transition gap-4">
+                      {isEditing ? (
+                        <div className="flex-1 space-y-1.5">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editDeptInputValue}
+                              onChange={(e) => { setEditDeptInputValue(e.target.value); setEditDeptError(null); }}
+                              className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditDeptSubmit(dept)}
+                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+                            >
+                              Simpan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setEditingDeptName(null); setEditDeptError(null); }}
+                              className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                          {editDeptError && <p className="text-[10px] text-rose-600 font-medium">{editDeptError}</p>}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs text-slate-800 truncate">{dept}</p>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                              Terhubung ke: <span className="text-slate-600 font-semibold">{cCount} kontrak</span> & <span className="text-slate-600 font-semibold">{pCount} probation</span>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => { setEditingDeptName(dept); setEditDeptInputValue(dept); setEditDeptError(null); }}
+                              className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition cursor-pointer"
+                              title="Edit"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDeptClick(dept)}
+                              className="p-1.5 hover:bg-rose-50 rounded-md text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                              title="Hapus"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Direct Manager Management Section */}
+        <div className="bg-white border border-slate-150 rounded-xl p-5 shadow-xs space-y-4">
+          <h3 className="font-semibold text-slate-900 font-display flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+            <Users className="h-5 w-5 text-emerald-600" />
+            Direct Manager Management
+          </h3>
+          <p className="text-xs text-slate-500">
+            Kelola daftar master Direct Manager untuk penugasan atasan langsung.
+          </p>
+
+          <form onSubmit={handleAddManagerSubmit} className="space-y-2 pt-1">
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Tambah Direct Manager Baru</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Contoh: Department Head"
+                value={newManagerName}
+                onChange={(e) => { setNewManagerName(e.target.value); setAddManagerError(null); }}
+                className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1 shrink-0 cursor-pointer"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Tambah
+              </button>
+            </div>
+            {addManagerError && <p className="text-[11px] text-rose-600 font-medium">{addManagerError}</p>}
+          </form>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Daftar Master Direct Manager ({directManagers.length})</label>
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
+              <div className="max-h-[220px] overflow-y-auto divide-y divide-slate-150">
+                {directManagers.map(mgr => {
+                  const { cCount, pCount } = getManagerUsageCount(mgr);
+                  const isEditing = editingManagerName === mgr;
+
+                  return (
+                    <div key={mgr} className="flex items-center justify-between p-3 bg-white hover:bg-slate-50/50 transition gap-4">
+                      {isEditing ? (
+                        <div className="flex-1 space-y-1.5">
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={editManagerInputValue}
+                              onChange={(e) => { setEditManagerInputValue(e.target.value); setEditManagerError(null); }}
+                              className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition"
+                              autoFocus
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditManagerSubmit(mgr)}
+                              className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+                            >
+                              Simpan
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setEditingManagerName(null); setEditManagerError(null); }}
+                              className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+                            >
+                              Batal
+                            </button>
+                          </div>
+                          {editManagerError && <p className="text-[10px] text-rose-600 font-medium">{editManagerError}</p>}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-xs text-slate-800 truncate">{mgr}</p>
+                            <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                              Terhubung ke: <span className="text-slate-600 font-semibold">{cCount} kontrak</span> & <span className="text-slate-600 font-semibold">{pCount} probation</span>
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => { setEditingManagerName(mgr); setEditManagerInputValue(mgr); setEditManagerError(null); }}
+                              className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-emerald-600 transition cursor-pointer"
+                              title="Edit"
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteManagerClick(mgr)}
+                              className="p-1.5 hover:bg-rose-50 rounded-md text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                              title="Hapus"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

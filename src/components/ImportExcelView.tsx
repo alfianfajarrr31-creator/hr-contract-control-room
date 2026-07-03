@@ -237,9 +237,9 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
 
       // 1. Data Cleaning
       const employeeName = String(rawRowObj.employeeName || '').trim().replace(/\s+/g, ' ');
-      const department = String(rawRowObj.department || '').trim();
+      const department = String(rawRowObj.department || '').trim() || "Unassigned";
       const position = String(rawRowObj.position || '').trim();
-      const directManager = String(rawRowObj.directManager || '').trim();
+      const directManager = String(rawRowObj.directManager || '').trim() || "Unassigned";
       
       let employeeId = String(rawRowObj.employeeId || '').trim();
       if (!employeeId) {

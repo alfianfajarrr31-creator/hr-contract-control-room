@@ -31,6 +31,8 @@ import { DEPARTMENTS } from "../seedData";
 interface ContractTrackerViewProps {
   contracts: ContractItem[];
   hrPics: string[];
+  departments: string[];
+  directManagers: string[];
   onAddContract: () => void;
   onEditContract: (contract: ContractItem) => void;
   onDeleteContract: (id: string) => void;
@@ -40,6 +42,8 @@ interface ContractTrackerViewProps {
 export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
   contracts,
   hrPics,
+  departments,
+  directManagers,
   onAddContract,
   onEditContract,
   onDeleteContract,
@@ -48,6 +52,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedDept, setSelectedDept] = useState("All Departments");
+  const [selectedManager, setSelectedManager] = useState("All Direct Managers");
   const [selectedStatus, setSelectedStatus] = useState("All Statuses");
   const [selectedPriority, setSelectedPriority] = useState("All Priorities");
   const [selectedPIC, setSelectedPIC] = useState("All HR PICs");
@@ -70,11 +75,12 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                           c.position.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesDept = selectedDept === "All Departments" || c.department === selectedDept;
+    const matchesManager = selectedManager === "All Direct Managers" || c.directManager === selectedManager;
     const matchesStatus = selectedStatus === "All Statuses" || c.contractStatus === selectedStatus;
     const matchesPriority = selectedPriority === "All Priorities" || c.priority === selectedPriority;
     const matchesPIC = selectedPIC === "All HR PICs" || c.hrPic === selectedPIC;
 
-    return matchesSearch && matchesDept && matchesStatus && matchesPriority && matchesPIC;
+    return matchesSearch && matchesDept && matchesManager && matchesStatus && matchesPriority && matchesPIC;
   }).sort((a, b) => {
     const dateA = new Date(a.contractEndDate).getTime();
     const dateB = new Date(b.contractEndDate).getTime();
@@ -84,6 +90,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
   const resetFilters = () => {
     setSearchTerm("");
     setSelectedDept("All Departments");
+    setSelectedManager("All Direct Managers");
     setSelectedStatus("All Statuses");
     setSelectedPriority("All Priorities");
     setSelectedPIC("All HR PICs");
@@ -185,7 +192,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
             <Filter className="h-4 w-4 text-slate-500" />
             Filters & Search
           </h3>
-          {(searchTerm || selectedDept !== "All Departments" || selectedStatus !== "All Statuses" || selectedPriority !== "All Priorities" || selectedPIC !== "All HR PICs") && (
+          {(searchTerm || selectedDept !== "All Departments" || selectedManager !== "All Direct Managers" || selectedStatus !== "All Statuses" || selectedPriority !== "All Priorities" || selectedPIC !== "All HR PICs") && (
             <button
               onClick={resetFilters}
               className="text-xs text-rose-600 hover:text-rose-800 font-semibold flex items-center gap-1 cursor-pointer"
@@ -196,7 +203,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
           {/* Search bar */}
           <div className="relative">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Search</label>
@@ -204,7 +211,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
-                placeholder="ID, Name, or Position..."
+                placeholder="ID, Name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
@@ -220,8 +227,24 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
               onChange={(e) => setSelectedDept(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
             >
-              {DEPARTMENTS.map(dept => (
+              <option value="All Departments">All Departments</option>
+              {departments.map(dept => (
                 <option key={dept} value={dept}>{dept}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Direct Manager Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Direct Manager</label>
+            <select
+              value={selectedManager}
+              onChange={(e) => setSelectedManager(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+            >
+              <option value="All Direct Managers">All Direct Managers</option>
+              {directManagers.map(mgr => (
+                <option key={mgr} value={mgr}>{mgr}</option>
               ))}
             </select>
           </div>
