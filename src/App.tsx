@@ -8,7 +8,7 @@ import {
   computeProbationSLA,
   getTodayDateStr
 } from "./types";
-import { INITIAL_CONTRACTS, INITIAL_PROBATIONS } from "./seedData";
+import { INITIAL_CONTRACTS, INITIAL_PROBATIONS, HR_PICS as DEFAULT_HR_PICS } from "./seedData";
 import { DashboardView } from "./components/DashboardView";
 import { ContractTrackerView } from "./components/ContractTrackerView";
 import { ProbationTrackerView } from "./components/ProbationTrackerView";
@@ -43,6 +43,9 @@ export default function App() {
   // Core Data States
   const [contracts, setContracts] = useState<ContractItem[]>([]);
   const [probations, setProbations] = useState<ProbationItem[]>([]);
+  
+  // HR PIC Master List State
+  const [hrPics, setHrPics] = useState<string[]>([]);
   
   // Simulation Date (defaulting dynamically to today's date)
   const [simulationDate, setSimulationDate] = useState<string>(getTodayDateStr());
@@ -130,6 +133,34 @@ export default function App() {
 
     setContracts(updatedContracts);
     setProbations(updatedProbations);
+
+    // Load HR PIC list
+    const savedPicsStr = localStorage.getItem("hrcc_hr_pic_list");
+    let initialPics: string[] = [];
+    if (savedPicsStr) {
+      try {
+        initialPics = JSON.parse(savedPicsStr);
+      } catch (e) {
+        initialPics = [];
+      }
+    }
+
+    if (!initialPics || initialPics.length === 0) {
+      const collected = new Set<string>();
+      
+      // Default list should contain: "HR Team", "Alfian", "Head HR", and existing defaults
+      const defaultPics = ["HR Team", "Alfian", "Head HR", "Siti Rahma", "Rian Hidayat", "Ahmad Fauzi"];
+      defaultPics.forEach(pic => collected.add(pic.trim()));
+
+      // Merge from existing contracts and probations
+      updatedContracts.forEach(c => { if (c.hrPic) collected.add(c.hrPic.trim()); });
+      updatedProbations.forEach(p => { if (p.hrPic) collected.add(p.hrPic.trim()); });
+
+      initialPics = Array.from(collected).filter(p => p && p.toLowerCase() !== "all hr pics");
+      localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(initialPics));
+    }
+
+    setHrPics(initialPics);
   }, []);
 
   // Save data to localStorage whenever core data changes, but we'll also update priority/days based on date
@@ -158,6 +189,27 @@ export default function App() {
     localStorage.setItem("hr_contract_control_contracts", JSON.stringify(finalC));
     localStorage.setItem("hr_contract_control_probations", JSON.stringify(finalP));
     localStorage.setItem("hr_contract_control_simdate", currentSimDate);
+
+    // Auto-scan for any new HR PICs that aren't currently in hrPics and add them!
+    const uniqueNewPics = new Set<string>();
+    finalC.forEach(c => { if (c.hrPic) uniqueNewPics.add(c.hrPic.trim()); });
+    finalP.forEach(p => { if (p.hrPic) uniqueNewPics.add(p.hrPic.trim()); });
+
+    setHrPics(prev => {
+      let changed = false;
+      const nextPics = [...prev];
+      uniqueNewPics.forEach(pic => {
+        if (pic && pic.toLowerCase() !== "all hr pics" && !nextPics.some(p => p.trim().toLowerCase() === pic.toLowerCase())) {
+          nextPics.push(pic);
+          changed = true;
+        }
+      });
+      if (changed) {
+        localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(nextPics));
+        return nextPics;
+      }
+      return prev;
+    });
   };
 
   // Handle Simulation Date Change
@@ -165,6 +217,74 @@ export default function App() {
     setSimulationDate(newDate);
     // Recompute all on change
     syncWithStorage(contracts, probations, newDate);
+  };
+
+  // HR PIC Management Handlers
+  const handleAddHrPic = (name: string): string | null => {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      return "Nama HR PIC tidak boleh kosong.";
+    }
+    if (trimmed.toLowerCase() === "all hr pics") {
+      return "Nama 'All HR PICs' dicadangkan untuk filter sistem.";
+    }
+    const isDuplicate = hrPics.some(p => p.trim().toLowerCase() === trimmed.toLowerCase());
+    if (isDuplicate) {
+      return "Nama HR PIC sudah terdaftar di master list (tidak boleh duplikat).";
+    }
+
+    const updated = [...hrPics, trimmed];
+    setHrPics(updated);
+    localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(updated));
+    return null;
+  };
+
+  const handleEditHrPic = (oldName: string, newName: string): string | null => {
+    const trimmedOld = oldName.trim();
+    const trimmedNew = newName.trim();
+    if (!trimmedNew) {
+      return "Nama baru tidak boleh kosong.";
+    }
+    if (trimmedNew.toLowerCase() === "all hr pics") {
+      return "Nama 'All HR PICs' dicadangkan untuk filter sistem.";
+    }
+    if (trimmedOld.toLowerCase() === trimmedNew.toLowerCase()) {
+      return null; // No change needed
+    }
+    const isDuplicate = hrPics.some(p => p.trim().toLowerCase() === trimmedNew.toLowerCase() && p.trim().toLowerCase() !== trimmedOld.toLowerCase());
+    if (isDuplicate) {
+      return "Nama HR PIC baru sudah terdaftar di master list.";
+    }
+
+    // 1. Update in master list
+    const updatedPics = hrPics.map(pic => pic.trim().toLowerCase() === trimmedOld.toLowerCase() ? trimmedNew : pic);
+    setHrPics(updatedPics);
+    localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(updatedPics));
+
+    // 2. Update in contracts and probations
+    const updatedC = contracts.map(c => {
+      if (c.hrPic && c.hrPic.trim().toLowerCase() === trimmedOld.toLowerCase()) {
+        return { ...c, hrPic: trimmedNew };
+      }
+      return c;
+    });
+
+    const updatedP = probations.map(p => {
+      if (p.hrPic && p.hrPic.trim().toLowerCase() === trimmedOld.toLowerCase()) {
+        return { ...p, hrPic: trimmedNew };
+      }
+      return p;
+    });
+
+    syncWithStorage(updatedC, updatedP, simulationDate);
+    return null;
+  };
+
+  const handleDeleteHrPic = (name: string) => {
+    const trimmed = name.trim();
+    const updatedPics = hrPics.filter(pic => pic.trim().toLowerCase() !== trimmed.toLowerCase());
+    setHrPics(updatedPics);
+    localStorage.setItem("hrcc_hr_pic_list", JSON.stringify(updatedPics));
   };
 
   // Reset all to original seeds
@@ -680,6 +800,7 @@ export default function App() {
           {activeTab === "contracts" && (
             <ContractTrackerView
               contracts={contracts}
+              hrPics={hrPics}
               onAddContract={() => {
                 setEditingContract(null);
                 setActiveTab("add-contract");
@@ -697,6 +818,7 @@ export default function App() {
             <ProbationTrackerView
               probations={probations}
               contracts={contracts}
+              hrPics={hrPics}
               onAddProbation={() => {
                 setEditingProbation(null);
                 setActiveTab("add-probation");
@@ -715,6 +837,10 @@ export default function App() {
             <SettingsView
               contracts={contracts}
               probations={probations}
+              hrPics={hrPics}
+              onAddHrPic={handleAddHrPic}
+              onEditHrPic={handleEditHrPic}
+              onDeleteHrPic={handleDeleteHrPic}
               onClearSampleData={handleClearSampleData}
               onClearAllData={handleClearAllData}
               onResetToSampleData={handleResetToSampleData}
@@ -725,6 +851,7 @@ export default function App() {
             <ContractForm
               contractToEdit={null}
               existingContracts={contracts}
+              hrPics={hrPics}
               onSave={handleSaveContract}
               onCancel={() => setActiveTab("contracts")}
             />
@@ -734,6 +861,7 @@ export default function App() {
             <ContractForm
               contractToEdit={editingContract}
               existingContracts={contracts}
+              hrPics={hrPics}
               onSave={handleSaveContract}
               onCancel={() => setActiveTab("contracts")}
             />
@@ -742,6 +870,7 @@ export default function App() {
           {activeTab === "add-probation" && (
             <ProbationForm
               probationToEdit={null}
+              hrPics={hrPics}
               onSave={handleSaveProbation}
               onCancel={() => setActiveTab("probation")}
             />
@@ -750,6 +879,7 @@ export default function App() {
           {activeTab === "edit-probation" && (
             <ProbationForm
               probationToEdit={editingProbation}
+              hrPics={hrPics}
               onSave={handleSaveProbation}
               onCancel={() => setActiveTab("probation")}
             />

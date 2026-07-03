@@ -29,11 +29,12 @@ import {
   X,
   Info
 } from "lucide-react";
-import { DEPARTMENTS, HR_PICS } from "../seedData";
+import { DEPARTMENTS } from "../seedData";
 
 interface ProbationTrackerViewProps {
   probations: ProbationItem[];
   contracts: ContractItem[];
+  hrPics: string[];
   onAddProbation: () => void;
   onEditProbation: (probation: ProbationItem) => void;
   onDeleteProbation: (id: string) => void;
@@ -44,6 +45,7 @@ interface ProbationTrackerViewProps {
 export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   probations,
   contracts,
+  hrPics,
   onAddProbation,
   onEditProbation,
   onDeleteProbation,
@@ -138,7 +140,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
     // contract number is empty initially on open
     setConvContractNum("");
     
-    setConvHrPic(p.hrPic || HR_PICS[0] || "Siti Rahma");
+    setConvHrPic(p.hrPic || hrPics[0] || "HR Team");
     setConvNotes("Converted from probation record. Awaiting contract drafting.");
     setConvErrors({});
   };
@@ -462,7 +464,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
               onChange={(e) => setSelectedPIC(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition outline-none"
             >
-              {HR_PICS.map(pic => (
+              {["All HR PICs", ...hrPics].map(pic => (
                 <option key={pic} value={pic}>{pic}</option>
               ))}
             </select>
@@ -812,7 +814,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                     onChange={(e) => setConvHrPic(e.target.value)}
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/20 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
                   >
-                    {HR_PICS.filter(pic => pic !== "All HR PICs").map(pic => (
+                    {hrPics.map(pic => (
                       <option key={pic} value={pic}>{pic}</option>
                     ))}
                   </select>

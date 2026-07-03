@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { 
   ContractItem,
   ProbationItem,
@@ -22,12 +22,18 @@ import {
   Trash2,
   RefreshCw,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Plus,
+  Edit2
 } from "lucide-react";
 
 interface SettingsViewProps {
   contracts: ContractItem[];
   probations: ProbationItem[];
+  hrPics: string[];
+  onAddHrPic: (name: string) => string | null;
+  onEditHrPic: (oldName: string, newName: string) => string | null;
+  onDeleteHrPic: (name: string) => void;
   onClearSampleData: () => void;
   onClearAllData: () => void;
   onResetToSampleData: () => void;
@@ -36,10 +42,29 @@ interface SettingsViewProps {
 export const SettingsView: React.FC<SettingsViewProps> = ({
   contracts,
   probations,
+  hrPics,
+  onAddHrPic,
+  onEditHrPic,
+  onDeleteHrPic,
   onClearSampleData,
   onClearAllData,
   onResetToSampleData
 }) => {
+  // HR PIC Management state
+  const [newPicName, setNewPicName] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
+  
+  // Editing state
+  const [editingPicName, setEditingPicName] = useState<string | null>(null);
+  const [editInputValue, setEditInputValue] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  
+  // Deleting confirmation state
+  const [deletingPic, setDeletingPic] = useState<string | null>(null);
+  
+  // Success toast/alert message
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
   const handleExportContractsBackup = () => {
     const dataStr = JSON.stringify(contracts, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
@@ -64,6 +89,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     document.body.removeChild(link);
   };
 
+  const getPicUsageCount = (pic: string) => {
+    const norm = pic.trim().toLowerCase();
+    const cCount = contracts.filter(c => c.hrPic && c.hrPic.trim().toLowerCase() === norm).length;
+    const pCount = probations.filter(p => p.hrPic && p.hrPic.trim().toLowerCase() === norm).length;
+    return { cCount, pCount };
+  };
+
+  const handleAddSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddError(null);
+    setSuccessMessage(null);
+    
+    const err = onAddHrPic(newPicName);
+    if (err) {
+      setAddError(err);
+    } else {
+      setSuccessMessage(`Berhasil menambahkan HR PIC "${newPicName.trim()}"`);
+      setNewPicName("");
+    }
+  };
+
+  const handleSaveEditSubmit = (pic: string) => {
+    setEditError(null);
+    setSuccessMessage(null);
+    
+    const err = onEditHrPic(pic, editInputValue);
+    if (err) {
+      setEditError(err);
+    } else {
+      setSuccessMessage(`Nama HR PIC "${pic}" berhasil diubah menjadi "${editInputValue.trim()}"`);
+      setEditingPicName(null);
+      setEditInputValue("");
+    }
+  };
+
+  const handleDeleteClick = (pic: string) => {
+    setSuccessMessage(null);
+    const { cCount, pCount } = getPicUsageCount(pic);
+    if (cCount > 0 || pCount > 0) {
+      // Show custom warning modal/alert
+      setDeletingPic(pic);
+    } else {
+      // No usage, we can ask for normal confirmation or delete immediately
+      if (confirm(`Apakah Anda yakin ingin menghapus HR PIC "${pic}"?`)) {
+        onDeleteHrPic(pic);
+        setSuccessMessage(`Berhasil menghapus HR PIC "${pic}"`);
+      }
+    }
+  };
+
+  const confirmDelete = () => {
+    if (deletingPic) {
+      onDeleteHrPic(deletingPic);
+      setSuccessMessage(`Berhasil menghapus HR PIC "${deletingPic}"`);
+      setDeletingPic(null);
+    }
+  };
+
   return (
     <div className="space-y-8 animate-fade-in" id="settings-view-container">
       {/* Header */}
@@ -75,6 +158,136 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* Grid of Drodown definitions */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
+        {/* HR PIC Management Section */}
+        <div className="bg-white border border-slate-150 rounded-xl p-5 shadow-xs space-y-4 lg:col-span-2">
+          <h3 className="font-semibold text-slate-900 font-display flex items-center gap-2 border-b border-slate-100 pb-3 mb-1">
+            <Users className="h-5 w-5 text-indigo-600" />
+            HR PIC Management
+          </h3>
+          <p className="text-xs text-slate-500">
+            Kelola daftar Person In Charge (PIC) HR untuk penugasan pengawasan kontrak dan probation.
+          </p>
+
+          {/* Success Notification */}
+          {successMessage && (
+            <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-850 text-xs rounded-lg font-medium animate-fade-in">
+              ✓ {successMessage}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+            {/* Left Col: Add form */}
+            <div className="space-y-4">
+              <form onSubmit={handleAddSubmit} className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">Tambah HR PIC Baru</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Contoh: Alfian"
+                    value={newPicName}
+                    onChange={(e) => { setNewPicName(e.target.value); setAddError(null); }}
+                    className="flex-1 px-3.5 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition"
+                  />
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-1 shrink-0 cursor-pointer"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    Tambah
+                  </button>
+                </div>
+                {addError && <p className="text-[11px] text-rose-600 font-medium">{addError}</p>}
+              </form>
+
+              <div className="bg-slate-50 p-4 border border-slate-150 rounded-xl text-xs space-y-2 text-slate-600 leading-relaxed">
+                <div className="font-semibold text-slate-800 flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                  Aturan & Validasi
+                </div>
+                <ul className="list-disc list-inside space-y-1 pl-1">
+                  <li>Nama tidak boleh kosong (setelah di-trim).</li>
+                  <li>Nama harus unik secara case-insensitive.</li>
+                  <li>Mengedit nama akan otomatis memperbarui seluruh data kontrak & probation terkait.</li>
+                  <li>Menghapus nama yang terpakai akan menampilkan dialog konfirmasi peringatan.</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Right Col: List of current HR PICs */}
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Daftar Master HR PIC ({hrPics.length})</label>
+              <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/30">
+                <div className="max-h-[300px] overflow-y-auto divide-y divide-slate-150">
+                  {hrPics.map(pic => {
+                    const { cCount, pCount } = getPicUsageCount(pic);
+                    const isEditing = editingPicName === pic;
+
+                    return (
+                      <div key={pic} className="flex items-center justify-between p-3.5 bg-white hover:bg-slate-50/50 transition gap-4">
+                        {isEditing ? (
+                          <div className="flex-1 space-y-1.5">
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={editInputValue}
+                                onChange={(e) => { setEditInputValue(e.target.value); setEditError(null); }}
+                                className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none transition"
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveEditSubmit(pic)}
+                                className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-[11px] font-bold transition cursor-pointer"
+                              >
+                                Simpan
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setEditingPicName(null); setEditError(null); }}
+                                className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-[11px] font-semibold transition cursor-pointer"
+                              >
+                                Batal
+                              </button>
+                            </div>
+                            {editError && <p className="text-[10px] text-rose-600 font-medium">{editError}</p>}
+                          </div>
+                        ) : (
+                          <>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-xs text-slate-800 truncate">{pic}</p>
+                              <p className="text-[10px] text-slate-400 font-medium mt-0.5">
+                                Terhubung ke: <span className="text-slate-600 font-semibold">{cCount} kontrak</span> & <span className="text-slate-600 font-semibold">{pCount} probation</span>
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => { setEditingPicName(pic); setEditInputValue(pic); setEditError(null); }}
+                                className="p-1.5 hover:bg-slate-100 rounded-md text-slate-500 hover:text-indigo-600 transition cursor-pointer"
+                                title="Edit"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteClick(pic)}
+                                className="p-1.5 hover:bg-rose-50 rounded-md text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                                title="Hapus"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Contract Status Values */}
         <div className="bg-white border border-slate-150 rounded-xl p-5 shadow-xs">
           <h3 className="font-semibold text-slate-900 font-display flex items-center gap-2 border-b border-slate-100 pb-3 mb-3">
@@ -359,6 +572,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Custom Deletion Warning Modal */}
+      {deletingPic && (() => {
+        const { cCount, pCount } = getPicUsageCount(deletingPic);
+        return (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="delete-pic-warning-modal">
+            <div className="bg-white border border-slate-150 rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4 animate-scale-up">
+              <div className="flex items-start gap-3">
+                <div className="h-10 w-10 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center shrink-0">
+                  <AlertTriangle className="h-5 w-5" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="font-bold text-slate-950 font-display text-base">Hapus HR PIC Terpakai?</h3>
+                  <p className="text-xs text-slate-500">
+                    Nama HR PIC <strong className="text-slate-800">"{deletingPic}"</strong> saat ini sedang digunakan dalam data aktif tracker.
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-amber-50/60 border border-amber-200 text-amber-950 rounded-xl space-y-1.5">
+                <p className="text-[11px] font-bold uppercase tracking-wider">Detail Penggunaan Data:</p>
+                <ul className="text-xs list-disc list-inside space-y-0.5">
+                  <li>Kontrak Terkait: <span className="font-semibold">{cCount} kontrak</span></li>
+                  <li>Probation Terkait: <span className="font-semibold">{pCount} data probation</span></li>
+                </ul>
+                <p className="text-[11px] mt-2 border-t border-amber-200/50 pt-1.5 leading-normal">
+                  ⚠️ Hapus akan tetap menghapus nama ini dari Master List, tapi data lama tidak diubah.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setDeletingPic(null)}
+                  className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-600 rounded-lg text-xs font-medium transition cursor-pointer"
+                >
+                  Batal / Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDelete}
+                  className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold transition shadow-md cursor-pointer"
+                >
+                  Ya, Tetap Hapus
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
+

@@ -8,12 +8,13 @@ import {
   isContractNumberExists,
   getNextContractSequence
 } from "../types";
-import { DEPARTMENTS, HR_PICS } from "../seedData";
+import { DEPARTMENTS } from "../seedData";
 import { Save, ArrowLeft, AlertCircle } from "lucide-react";
 
 interface ContractFormProps {
   contractToEdit: ContractItem | null;
   existingContracts?: ContractItem[];
+  hrPics: string[];
   onSave: (contract: ContractItem) => void;
   onCancel: () => void;
 }
@@ -21,6 +22,7 @@ interface ContractFormProps {
 export const ContractForm: React.FC<ContractFormProps> = ({
   contractToEdit,
   existingContracts = [],
+  hrPics,
   onSave,
   onCancel
 }) => {
@@ -71,7 +73,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
   const [signedDeadline, setSignedDeadline] = useState("");
   const [signedReceivedDate, setSignedReceivedDate] = useState("");
   const [contractStatus, setContractStatus] = useState<ContractStatus>(ContractStatus.Active);
-  const [hrPic, setHrPic] = useState("Siti Rahma");
+  const [hrPic, setHrPic] = useState(() => hrPics[0] || "HR Team");
   const [notes, setNotes] = useState("");
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -132,7 +134,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setSignedDeadline("");
       setSignedReceivedDate("");
       setContractStatus(ContractStatus.NeedReview);
-      setHrPic(HR_PICS[1] || "Siti Rahma");
+      setHrPic(hrPics[0] || "HR Team");
       setNotes("");
     }
     setErrors({});
@@ -334,7 +336,7 @@ export const ContractForm: React.FC<ContractFormProps> = ({
                 onChange={(e) => setHrPic(e.target.value)}
                 className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
               >
-                {HR_PICS.filter(p => p !== "All HR PICs").map(pic => (
+                {hrPics.map(pic => (
                   <option key={pic} value={pic}>{pic}</option>
                 ))}
               </select>
