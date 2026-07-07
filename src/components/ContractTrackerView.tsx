@@ -37,6 +37,7 @@ interface ContractTrackerViewProps {
   onEditContract: (contract: ContractItem) => void;
   onDeleteContract: (id: string) => void;
   onExportCSV: (items: ContractItem[]) => void;
+  onUpdateContract?: (contract: ContractItem) => void;
 }
 
 export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
@@ -47,7 +48,8 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
   onAddContract,
   onEditContract,
   onDeleteContract,
-  onExportCSV
+  onExportCSV,
+  onUpdateContract
 }) => {
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
@@ -539,6 +541,183 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                                   </div>
                                 )}
                               </div>
+
+                              {/* Exit Process Flow (ARC 3.8) */}
+                              {((c.exitProcessStatus && c.exitProcessStatus !== "Not Started") || ["Resigned", "End Process", "Exit Process", "Closed"].includes(c.contractStatus)) && (
+                                <div className="col-span-1 md:col-span-4 mt-4 p-4 bg-indigo-50/20 border border-indigo-100 rounded-xl space-y-3">
+                                  <div className="flex items-center justify-between border-b border-indigo-100 pb-2">
+                                    <h5 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                                      <CheckCircle className="h-4 w-4 text-indigo-600" />
+                                      Exit Process & Clearance Tracking
+                                    </h5>
+                                    <span className="text-xs font-semibold px-2.5 py-1 bg-white border border-indigo-150 text-indigo-700 rounded-lg shadow-2xs">
+                                      Exit Status: {c.exitProcessStatus || "Not Started"}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">End Reason:</span>
+                                      <span className="font-semibold text-slate-700">{c.endReason || "-"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Notice Date:</span>
+                                      <span className="font-mono text-slate-700">{c.noticeDate || "-"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Last Working Date:</span>
+                                      <span className="font-mono text-rose-600 font-bold">{c.lastWorkingDate || "-"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Closed Date:</span>
+                                      <span className="font-mono text-slate-700">{c.closedDate || "-"}</span>
+                                    </div>
+
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Form Akses & Asset:</span>
+                                      <div className="space-y-0.5">
+                                        <div className="text-[10px] text-slate-500 font-mono">Sent: {c.accessAssetFormSentDate || "-"}</div>
+                                        <div className="text-[10px] text-emerald-600 font-mono font-semibold">Done: {c.accessAssetFormCompletedDate || "-"}</div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Form Exit Clearance:</span>
+                                      <div className="space-y-0.5">
+                                        <div className="text-[10px] text-slate-500 font-mono">Sent: {c.exitClearanceFormSentDate || "-"}</div>
+                                        <div className="text-[10px] text-emerald-600 font-mono font-semibold">Done: {c.exitClearanceCompletedDate || "-"}</div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Form Exit Interview (Private):</span>
+                                      <div className="space-y-0.5">
+                                        <div className="text-[10px] text-slate-500 font-mono">Sent: {c.exitInterviewFormSentDate || "-"}</div>
+                                        <div className="text-[10px] font-semibold text-indigo-700">Status: {c.exitInterviewStatus || "Not Sent"}</div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Akses & Asset Details:</span>
+                                      <div className="space-y-0.5 text-[11px]">
+                                        <div><span className="text-slate-500">Akses Closure:</span> <span className="font-semibold text-slate-700">{c.accessClosureStatus || "Not Started"}</span></div>
+                                        <div><span className="text-slate-500">Asset Return:</span> <span className="font-semibold text-slate-700">{c.assetReturnStatus || "Not Started"} {c.assetReturnRequired && `(${c.assetReturnRequired})`}</span></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {c.exitNotes && (
+                                    <div className="bg-white border border-slate-150 p-2.5 rounded-lg text-xs text-slate-600 font-mono mt-2">
+                                      <span className="text-slate-400 font-sans font-semibold block text-[10px] uppercase mb-1">Exit Process Notes:</span>
+                                      {c.exitNotes}
+                                    </div>
+                                  )}
+
+                                  {/* Quick Actions for Offboarding */}
+                                  <div className="mt-4 pt-3 border-t border-indigo-100/50">
+                                    <span className="text-slate-500 text-xs font-semibold block mb-2 uppercase font-sans tracking-wide">Update Offboarding State (Quick Actions):</span>
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          let deadline = "";
+                                          if (c.lastWorkingDate) {
+                                            const lDate = new Date(c.lastWorkingDate);
+                                            lDate.setDate(lDate.getDate() - 2);
+                                            deadline = lDate.toISOString().slice(0, 10);
+                                          }
+                                          onUpdateContract?.({
+                                            ...c,
+                                            exitDocumentsSentDate: today,
+                                            accessAssetFormSentDate: today,
+                                            exitClearanceFormSentDate: today,
+                                            exitInterviewFormSentDate: today,
+                                            exitProcessStatus: "Exit Documents Sent",
+                                            accessAssetFormStatus: "Pending",
+                                            exitClearanceFormStatus: "Pending",
+                                            exitInterviewFormStatus: "Sent",
+                                            exitDocumentsReturnDeadline: deadline
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Exit Docs Sent
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateContract?.({
+                                            ...c,
+                                            accessAssetFormCompletedDate: today,
+                                            accessAssetFormStatus: "Completed",
+                                            exitProcessStatus: "Access & Asset Form Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Access & Asset Done
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateContract?.({
+                                            ...c,
+                                            exitClearanceCompletedDate: today,
+                                            exitClearanceFormStatus: "Completed",
+                                            exitProcessStatus: "Exit Clearance Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Exit Clearance Done
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateContract?.({
+                                            ...c,
+                                            exitInterviewCompletedDate: today,
+                                            exitInterviewFormStatus: "Completed",
+                                            exitInterviewStatus: "Completed",
+                                            exitProcessStatus: "Exit Interview Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Interview Done
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateContract?.({
+                                            ...c,
+                                            exitInterviewCompletedDate: today,
+                                            exitInterviewFormStatus: "Declined",
+                                            exitInterviewStatus: "Declined",
+                                            exitProcessStatus: "Exit Interview Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Interview Declined
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateContract?.({
+                                            ...c,
+                                            exitClosedDate: today,
+                                            exitProcessStatus: "Closed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-950 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Closed
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                             </div>
                           </td>

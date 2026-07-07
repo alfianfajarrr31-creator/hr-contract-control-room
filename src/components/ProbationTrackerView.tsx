@@ -42,6 +42,7 @@ interface ProbationTrackerViewProps {
   onDeleteProbation: (id: string) => void;
   onExportCSV: (items: ProbationItem[]) => void;
   onConvertProbationToContract: (newContract: ContractItem, updatedProbation: ProbationItem) => void;
+  onUpdateProbation?: (probation: ProbationItem) => void;
 }
 
 export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
@@ -54,7 +55,8 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   onEditProbation,
   onDeleteProbation,
   onExportCSV,
-  onConvertProbationToContract
+  onConvertProbationToContract,
+  onUpdateProbation
 }) => {
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
@@ -726,6 +728,183 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                                   {p.notes || "No special evaluation notes added for this probation record yet."}
                                 </div>
                               </div>
+
+                              {/* Exit Process Flow (ARC 3.8) */}
+                              {((p.exitProcessStatus && p.exitProcessStatus !== "Not Started") || ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process", "Closed"].includes(p.probationStatus)) && (
+                                <div className="col-span-1 md:col-span-4 mt-4 p-4 bg-emerald-50/20 border border-emerald-100 rounded-xl space-y-3">
+                                  <div className="flex items-center justify-between border-b border-emerald-100 pb-2">
+                                    <h5 className="font-bold text-slate-800 text-xs uppercase tracking-wider flex items-center gap-1.5 font-sans">
+                                      <CheckCircle className="h-4 w-4 text-emerald-600" />
+                                      Exit Process & Clearance Tracking
+                                    </h5>
+                                    <span className="text-xs font-semibold px-2.5 py-1 bg-white border border-emerald-150 text-emerald-700 rounded-lg shadow-2xs">
+                                      Exit Status: {p.exitProcessStatus || "Not Started"}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">End Reason:</span>
+                                      <span className="font-semibold text-slate-700">{p.endReason || "-"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Notice Date:</span>
+                                      <span className="font-mono text-slate-700">{p.noticeDate || "-"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Last Working Date:</span>
+                                      <span className="font-mono text-rose-600 font-bold">{p.lastWorkingDate || "-"}</span>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Closed Date:</span>
+                                      <span className="font-mono text-slate-700">{p.closedDate || "-"}</span>
+                                    </div>
+
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Form Akses & Asset:</span>
+                                      <div className="space-y-0.5">
+                                        <div className="text-[10px] text-slate-500 font-mono">Sent: {p.accessAssetFormSentDate || "-"}</div>
+                                        <div className="text-[10px] text-emerald-600 font-mono font-semibold">Done: {p.accessAssetFormCompletedDate || "-"}</div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Form Exit Clearance:</span>
+                                      <div className="space-y-0.5">
+                                        <div className="text-[10px] text-slate-500 font-mono">Sent: {p.exitClearanceFormSentDate || "-"}</div>
+                                        <div className="text-[10px] text-emerald-600 font-mono font-semibold">Done: {p.exitClearanceCompletedDate || "-"}</div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Form Exit Interview (Private):</span>
+                                      <div className="space-y-0.5">
+                                        <div className="text-[10px] text-slate-500 font-mono">Sent: {p.exitInterviewFormSentDate || "-"}</div>
+                                        <div className="text-[10px] font-semibold text-emerald-700">Status: {p.exitInterviewStatus || "Not Sent"}</div>
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <span className="text-slate-400 block mb-0.5">Akses & Asset Details:</span>
+                                      <div className="space-y-0.5 text-[11px]">
+                                        <div><span className="text-slate-500">Akses Closure:</span> <span className="font-semibold text-slate-700">{p.accessClosureStatus || "Not Started"}</span></div>
+                                        <div><span className="text-slate-500">Asset Return:</span> <span className="font-semibold text-slate-700">{p.assetReturnStatus || "Not Started"} {p.assetReturnRequired && `(${p.assetReturnRequired})`}</span></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {p.exitNotes && (
+                                    <div className="bg-white border border-slate-150 p-2.5 rounded-lg text-xs text-slate-600 font-mono mt-2">
+                                      <span className="text-slate-400 font-sans font-semibold block text-[10px] uppercase mb-1">Exit Process Notes:</span>
+                                      {p.exitNotes}
+                                    </div>
+                                  )}
+
+                                  {/* Quick Actions for Offboarding */}
+                                  <div className="mt-4 pt-3 border-t border-emerald-100/50">
+                                    <span className="text-slate-500 text-xs font-semibold block mb-2 uppercase font-sans tracking-wide">Update Offboarding State (Quick Actions):</span>
+                                    <div className="flex flex-wrap gap-2">
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          let deadline = "";
+                                          if (p.lastWorkingDate) {
+                                            const lDate = new Date(p.lastWorkingDate);
+                                            lDate.setDate(lDate.getDate() - 2);
+                                            deadline = lDate.toISOString().slice(0, 10);
+                                          }
+                                          onUpdateProbation?.({
+                                            ...p,
+                                            exitDocumentsSentDate: today,
+                                            accessAssetFormSentDate: today,
+                                            exitClearanceFormSentDate: today,
+                                            exitInterviewFormSentDate: today,
+                                            exitProcessStatus: "Exit Documents Sent",
+                                            accessAssetFormStatus: "Pending",
+                                            exitClearanceFormStatus: "Pending",
+                                            exitInterviewFormStatus: "Sent",
+                                            exitDocumentsReturnDeadline: deadline
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-semibold hover:bg-emerald-700 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Exit Docs Sent
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateProbation?.({
+                                            ...p,
+                                            accessAssetFormCompletedDate: today,
+                                            accessAssetFormStatus: "Completed",
+                                            exitProcessStatus: "Access & Asset Form Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-semibold hover:bg-amber-600 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Access & Asset Done
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateProbation?.({
+                                            ...p,
+                                            exitClearanceCompletedDate: today,
+                                            exitClearanceFormStatus: "Completed",
+                                            exitProcessStatus: "Exit Clearance Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-blue-500 text-white rounded-lg text-xs font-semibold hover:bg-blue-600 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Exit Clearance Done
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateProbation?.({
+                                            ...p,
+                                            exitInterviewCompletedDate: today,
+                                            exitInterviewFormStatus: "Completed",
+                                            exitInterviewStatus: "Completed",
+                                            exitProcessStatus: "Exit Interview Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Interview Done
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateProbation?.({
+                                            ...p,
+                                            exitInterviewCompletedDate: today,
+                                            exitInterviewFormStatus: "Declined",
+                                            exitInterviewStatus: "Declined",
+                                            exitProcessStatus: "Exit Interview Completed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-rose-500 text-white rounded-lg text-xs font-semibold hover:bg-rose-600 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Interview Declined
+                                      </button>
+
+                                      <button
+                                        onClick={() => {
+                                          const today = new Date().toISOString().slice(0, 10);
+                                          onUpdateProbation?.({
+                                            ...p,
+                                            exitClosedDate: today,
+                                            exitProcessStatus: "Closed"
+                                          });
+                                        }}
+                                        className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-semibold hover:bg-slate-950 transition shadow-xs cursor-pointer"
+                                      >
+                                        Mark Closed
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
 
                             </div>
                           </td>

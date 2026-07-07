@@ -307,6 +307,180 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
+      {/* Section 4: Exit Process & Clearance Flow Tracking (ARC 3.8) */}
+      <div>
+        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 font-mono">4. Exit Process & Clearance Flow Tracking</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          
+          {/* Card 1: Due to Send */}
+          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs flex items-center gap-4 border-l-4 border-l-slate-400">
+            <div className="p-3 bg-slate-50 text-slate-600 rounded-lg">
+              <Clock className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Due to Send</p>
+              <h3 className="text-2xl font-bold font-mono text-slate-800 mt-1">
+                {(() => {
+                  const allExitsContracts = contracts.filter(c => 
+                    ["Resigned", "Not Renewed", "End Process", "Exit Process"].includes(c.contractStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(c.endReason || "") ||
+                    (c.exitProcessStatus && c.exitProcessStatus !== "Not Started")
+                  );
+                  const allExitsProbations = probations.filter(p => 
+                    ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process"].includes(p.probationStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(p.endReason || "") ||
+                    (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
+                  );
+                  const all = [...allExitsContracts, ...allExitsProbations];
+                  return all.filter(item => 
+                    item.lastWorkingDate && 
+                    (!item.exitDocumentsSentDate || item.exitDocumentsSentDate.trim() === "") &&
+                    item.exitProcessStatus !== "Closed"
+                  ).length;
+                })()}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Need offboard email</p>
+            </div>
+          </div>
+
+          {/* Card 2: Exit Documents Sent */}
+          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs flex items-center gap-4 border-l-4 border-l-blue-400">
+            <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
+              <Send className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Documents Sent</p>
+              <h3 className="text-2xl font-bold font-mono text-blue-700 mt-1">
+                {(() => {
+                  const allExitsContracts = contracts.filter(c => 
+                    ["Resigned", "Not Renewed", "End Process", "Exit Process"].includes(c.contractStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(c.endReason || "") ||
+                    (c.exitProcessStatus && c.exitProcessStatus !== "Not Started")
+                  );
+                  const allExitsProbations = probations.filter(p => 
+                    ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process"].includes(p.probationStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(p.endReason || "") ||
+                    (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
+                  );
+                  const all = [...allExitsContracts, ...allExitsProbations];
+                  return all.filter(item => 
+                    item.exitDocumentsSentDate && 
+                    item.exitDocumentsSentDate.trim() !== "" && 
+                    item.exitProcessStatus !== "Closed"
+                  ).length;
+                })()}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Forms dispatched</p>
+            </div>
+          </div>
+
+          {/* Card 3: Pending Form Completion */}
+          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs flex items-center gap-4 border-l-4 border-l-amber-500">
+            <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Forms Pending</p>
+              <h3 className="text-2xl font-bold font-mono text-amber-700 mt-1">
+                {(() => {
+                  const allExitsContracts = contracts.filter(c => 
+                    ["Resigned", "Not Renewed", "End Process", "Exit Process"].includes(c.contractStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(c.endReason || "") ||
+                    (c.exitProcessStatus && c.exitProcessStatus !== "Not Started")
+                  );
+                  const allExitsProbations = probations.filter(p => 
+                    ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process"].includes(p.probationStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(p.endReason || "") ||
+                    (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
+                  );
+                  const all = [...allExitsContracts, ...allExitsProbations];
+                  return all.filter(item => {
+                    const hasSent = item.exitDocumentsSentDate && item.exitDocumentsSentDate.trim() !== "";
+                    const notClosed = item.exitProcessStatus !== "Closed";
+                    const formsIncomplete = !item.accessAssetFormCompletedDate || 
+                                            !item.exitClearanceCompletedDate || 
+                                            !item.exitInterviewCompletedDate ||
+                                            item.accessAssetFormStatus !== "Completed" ||
+                                            item.exitClearanceFormStatus !== "Completed" ||
+                                            (item.exitInterviewFormStatus !== "Completed" && item.exitInterviewFormStatus !== "Declined");
+                    return hasSent && notClosed && formsIncomplete;
+                  }).length;
+                })()}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Completion active</p>
+            </div>
+          </div>
+
+          {/* Card 4: Overdue SLA Missed */}
+          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs flex items-center gap-4 border-l-4 border-l-rose-600">
+            <div className="p-3 bg-rose-50 text-rose-600 rounded-lg">
+              <AlertCircle className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">SLA Overdue</p>
+              <h3 className="text-2xl font-bold font-mono text-rose-700 mt-1">
+                {(() => {
+                  const allExitsContracts = contracts.filter(c => 
+                    ["Resigned", "Not Renewed", "End Process", "Exit Process"].includes(c.contractStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(c.endReason || "") ||
+                    (c.exitProcessStatus && c.exitProcessStatus !== "Not Started")
+                  );
+                  const allExitsProbations = probations.filter(p => 
+                    ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process"].includes(p.probationStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(p.endReason || "") ||
+                    (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
+                  );
+                  const all = [...allExitsContracts, ...allExitsProbations];
+                  const d = new Date();
+                  const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  return all.filter(item => {
+                    if (item.exitProcessStatus === "Closed") return false;
+                    if (!item.exitDocumentsReturnDeadline) return false;
+                    return item.exitDocumentsReturnDeadline < todayStr;
+                  }).length;
+                })()}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Deadline passed</p>
+            </div>
+          </div>
+
+          {/* Card 5: Closed This Month */}
+          <div className="bg-white border border-slate-100 rounded-xl p-5 shadow-xs flex items-center gap-4 border-l-4 border-l-emerald-500">
+            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
+              <CheckCircle className="h-6 w-6" />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">Closed (MTD)</p>
+              <h3 className="text-2xl font-bold font-mono text-emerald-700 mt-1">
+                {(() => {
+                  const allExitsContracts = contracts.filter(c => 
+                    ["Resigned", "Not Renewed", "End Process", "Exit Process"].includes(c.contractStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(c.endReason || "") ||
+                    (c.exitProcessStatus && c.exitProcessStatus !== "Not Started")
+                  );
+                  const allExitsProbations = probations.filter(p => 
+                    ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process"].includes(p.probationStatus) ||
+                    ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"].includes(p.endReason || "") ||
+                    (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
+                  );
+                  const all = [...allExitsContracts, ...allExitsProbations];
+                  const d = new Date();
+                  const thisYearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                  return all.filter(item => {
+                    if (item.exitProcessStatus !== "Closed") return false;
+                    const closedDate = item.exitClosedDate || item.exitInterviewCompletedDate || item.exitClearanceCompletedDate;
+                    if (!closedDate) return false;
+                    return closedDate.startsWith(thisYearMonth);
+                  }).length;
+                })()}
+              </h3>
+              <p className="text-xs text-slate-400 mt-0.5">Exits completed</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
       {/* Urgent Items Table Console */}
       <div className="bg-white border border-slate-100 rounded-xl shadow-xs overflow-hidden">
         <div className="bg-slate-50/50 border-b border-slate-100 px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

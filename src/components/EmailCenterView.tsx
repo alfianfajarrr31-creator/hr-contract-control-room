@@ -34,6 +34,9 @@ interface EmailCenterViewProps {
   simulationDate: string;
   onUpdateContracts: (updated: ContractItem[]) => void;
   onUpdateProbations: (updated: ProbationItem[]) => void;
+  accessAssetFormLink: string;
+  exitClearanceFormLink: string;
+  exitInterviewFormLink: string;
 }
 
 export function EmailCenterView({
@@ -41,7 +44,10 @@ export function EmailCenterView({
   probations,
   simulationDate,
   onUpdateContracts,
-  onUpdateProbations
+  onUpdateProbations,
+  accessAssetFormLink,
+  exitClearanceFormLink,
+  exitInterviewFormLink
 }: EmailCenterViewProps) {
   // 1. Template State
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplateType>("user-review");
@@ -106,6 +112,18 @@ export function EmailCenterView({
       label: "Probation Approval Request", 
       description: "Submit manager review results to Director for probation approval", 
       allowedSources: ["probation"] 
+    },
+    { 
+      key: "exit-documents-request", 
+      label: "Exit: Documents & Forms Request (All Forms)", 
+      description: "Send single email containing Access & Asset, Clearance, and Exit Interview forms altogether", 
+      allowedSources: ["contract", "probation"] 
+    },
+    { 
+      key: "exit-follow-up", 
+      label: "Exit: Pending Forms Follow Up", 
+      description: "Follow up with offboarding employees who have pending/incomplete forms", 
+      allowedSources: ["contract", "probation"] 
     },
   ];
 
@@ -209,7 +227,12 @@ export function EmailCenterView({
     selectedTemplate,
     { contracts: selectedContractsList, probations: selectedProbationsList },
     dataSource,
-    getFormattedMonthYear()
+    getFormattedMonthYear(),
+    {
+      accessAsset: accessAssetFormLink,
+      exitClearance: exitClearanceFormLink,
+      exitInterview: exitInterviewFormLink
+    }
   );
 
   // Copy functions
@@ -301,6 +324,10 @@ export function EmailCenterView({
         return item.probationReviewEmailSentDate;
       case "probation-approval":
         return item.probationApprovalEmailSentDate;
+      case "exit-documents-request":
+        return item.exitDocumentsSentDate;
+      case "exit-follow-up":
+        return undefined; // Follow-up logs can be tracked via exitNotes or handled manually
       default:
         return undefined;
     }
@@ -347,8 +374,10 @@ export function EmailCenterView({
               <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">1. Choose Communication Letter Template</h2>
             </div>
             <div className="p-6 grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-              {templates.map(t => {
-                const isSelected = selectedTemplate === t.key;
+              {templates
+                .filter(t => !["exit-asset", "exit-clearance", "exit-interview"].includes(t.key))
+                .map(t => {
+                  const isSelected = selectedTemplate === t.key;
                 return (
                   <button
                     key={t.key}

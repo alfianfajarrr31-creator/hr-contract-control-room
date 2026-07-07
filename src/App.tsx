@@ -54,6 +54,26 @@ export default function App() {
   // Simulation Date (defaulting dynamically to today's date)
   const [simulationDate, setSimulationDate] = useState<string>(getTodayDateStr());
 
+  // Exit Form Links (ARC 3.8)
+  const [accessAssetFormLink, setAccessAssetFormLink] = useState<string>(
+    () => localStorage.getItem("hrcc_access_asset_form_link") || ""
+  );
+  const [exitClearanceFormLink, setExitClearanceFormLink] = useState<string>(
+    () => localStorage.getItem("hrcc_exit_clearance_form_link") || ""
+  );
+  const [exitInterviewFormLink, setExitInterviewFormLink] = useState<string>(
+    () => localStorage.getItem("hrcc_exit_interview_form_link") || ""
+  );
+
+  const handleUpdateExitLinks = (accessAsset: string, exitClearance: string, exitInterview: string) => {
+    setAccessAssetFormLink(accessAsset);
+    setExitClearanceFormLink(exitClearance);
+    setExitInterviewFormLink(exitInterview);
+    localStorage.setItem("hrcc_access_asset_form_link", accessAsset);
+    localStorage.setItem("hrcc_exit_clearance_form_link", exitClearance);
+    localStorage.setItem("hrcc_exit_interview_form_link", exitInterview);
+  };
+
   // Edit Item Holders
   const [editingContract, setEditingContract] = useState<ContractItem | null>(null);
   const [editingProbation, setEditingProbation] = useState<ProbationItem | null>(null);
@@ -518,6 +538,16 @@ export default function App() {
     localStorage.setItem("hrcc_direct_manager_list", JSON.stringify(updatedMgrs));
   };
 
+  const handleUpdateContractInline = (updatedC: ContractItem) => {
+    const nextContracts = contracts.map(c => c.id === updatedC.id ? updatedC : c);
+    syncWithStorage(nextContracts, probations, simulationDate);
+  };
+
+  const handleUpdateProbationInline = (updatedP: ProbationItem) => {
+    const nextProbations = probations.map(p => p.id === updatedP.id ? updatedP : p);
+    syncWithStorage(contracts, nextProbations, simulationDate);
+  };
+
   // Reset all to original seeds
   const handleResetToSeeds = () => {
     handleResetToSampleData();
@@ -689,7 +719,11 @@ export default function App() {
       "User Recommendation", "Director Approval", "Head HR Review",
       "Contract Draft Date", "Contract Sent Date", "Signed Deadline", "Signed Received Date",
       "Contract Status", "Compensation Review Status", "HR PIC", "Priority", "Notes",
-      "Created From", "Source Probation ID"
+      "Created From", "Source Probation ID",
+      "End Reason", "Notice Date", "Last Working Date", "Exit Process Status",
+      "Access/Asset Form Sent Date", "Access/Asset Form Completed Date", "Asset Return Required", "Asset Return Status", "Access Closure Status",
+      "Exit Clearance Form Sent Date", "Exit Clearance Completed Date", "Exit Interview Form Sent Date", "Exit Interview Status", "Exit Interview Completed Date",
+      "Exit Notes", "Closed Date"
     ];
 
     const rows = items.map(c => [
@@ -699,7 +733,11 @@ export default function App() {
       c.userRecommendation, c.directorApproval, c.headHRReview,
       c.contractDraftDate, c.contractSentDate, c.signedDeadline, c.signedReceivedDate,
       c.contractStatus, c.salaryNegotiationStatus, c.hrPic, c.priority, c.notes.replace(/[\n,]/g, " "),
-      c.createdFrom || "", c.sourceProbationId || ""
+      c.createdFrom || "", c.sourceProbationId || "",
+      c.endReason || "", c.noticeDate || "", c.lastWorkingDate || "", c.exitProcessStatus || "",
+      c.accessAssetFormSentDate || "", c.accessAssetFormCompletedDate || "", c.assetReturnRequired || "", c.assetReturnStatus || "", c.accessClosureStatus || "",
+      c.exitClearanceFormSentDate || "", c.exitClearanceCompletedDate || "", c.exitInterviewFormSentDate || "", c.exitInterviewStatus || "", c.exitInterviewCompletedDate || "",
+      (c.exitNotes || "").replace(/[\n,]/g, " "), c.closedDate || ""
     ]);
 
     const csvContent = [
@@ -716,7 +754,11 @@ export default function App() {
       "Employee ID", "Employee Name", "Department", "Position", "Direct Manager",
       "Probation Start Date", "Probation End Date", "Days Remaining", "Review Form Status",
       "User Recommendation", "Director Approval", "Final Decision", "New Employment Status",
-      "HR PIC", "Probation Status", "Priority", "Notes", "Linked Contract ID"
+      "HR PIC", "Probation Status", "Priority", "Notes", "Linked Contract ID",
+      "End Reason", "Notice Date", "Last Working Date", "Exit Process Status",
+      "Access/Asset Form Sent Date", "Access/Asset Form Completed Date", "Asset Return Required", "Asset Return Status", "Access Closure Status",
+      "Exit Clearance Form Sent Date", "Exit Clearance Completed Date", "Exit Interview Form Sent Date", "Exit Interview Status", "Exit Interview Completed Date",
+      "Exit Notes", "Closed Date"
     ];
 
     const rows = items.map(p => [
@@ -724,7 +766,11 @@ export default function App() {
       p.probationStartDate, p.probationEndDate, p.daysRemaining, p.reviewFormStatus,
       p.userRecommendation, p.directorApproval, p.finalDecision, p.newEmploymentStatus,
       p.hrPic, p.probationStatus, p.priority, p.notes.replace(/[\n,]/g, " "),
-      p.linkedContractId || ""
+      p.linkedContractId || "",
+      p.endReason || "", p.noticeDate || "", p.lastWorkingDate || "", p.exitProcessStatus || "",
+      p.accessAssetFormSentDate || "", p.accessAssetFormCompletedDate || "", p.assetReturnRequired || "", p.assetReturnStatus || "", p.accessClosureStatus || "",
+      p.exitClearanceFormSentDate || "", p.exitClearanceCompletedDate || "", p.exitInterviewFormSentDate || "", p.exitInterviewStatus || "", p.exitInterviewCompletedDate || "",
+      (p.exitNotes || "").replace(/[\n,]/g, " "), p.closedDate || ""
     ]);
 
     const csvContent = [
@@ -1044,6 +1090,7 @@ export default function App() {
               }}
               onDeleteContract={handleDeleteContract}
               onExportCSV={handleExportContracts}
+              onUpdateContract={handleUpdateContractInline}
             />
           )}
 
@@ -1065,6 +1112,7 @@ export default function App() {
               onDeleteProbation={handleDeleteProbation}
               onExportCSV={handleExportProbations}
               onConvertProbationToContract={handleConvertProbationToContract}
+              onUpdateProbation={handleUpdateProbationInline}
             />
           )}
 
@@ -1087,6 +1135,10 @@ export default function App() {
               onClearSampleData={handleClearSampleData}
               onClearAllData={handleClearAllData}
               onResetToSampleData={handleResetToSampleData}
+              accessAssetFormLink={accessAssetFormLink}
+              exitClearanceFormLink={exitClearanceFormLink}
+              exitInterviewFormLink={exitInterviewFormLink}
+              onUpdateExitLinks={handleUpdateExitLinks}
             />
           )}
 
@@ -1153,6 +1205,9 @@ export default function App() {
               simulationDate={simulationDate}
               onUpdateContracts={(updated) => syncWithStorage(updated, probations, simulationDate)}
               onUpdateProbations={(updated) => syncWithStorage(contracts, updated, simulationDate)}
+              accessAssetFormLink={accessAssetFormLink}
+              exitClearanceFormLink={exitClearanceFormLink}
+              exitInterviewFormLink={exitInterviewFormLink}
             />
           )}
           </>

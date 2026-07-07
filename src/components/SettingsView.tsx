@@ -45,6 +45,10 @@ interface SettingsViewProps {
   onClearSampleData: () => void;
   onClearAllData: () => void;
   onResetToSampleData: () => void;
+  accessAssetFormLink: string;
+  exitClearanceFormLink: string;
+  exitInterviewFormLink: string;
+  onUpdateExitLinks: (accessAsset: string, exitClearance: string, exitInterview: string) => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -64,7 +68,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onDeleteDirectManager,
   onClearSampleData,
   onClearAllData,
-  onResetToSampleData
+  onResetToSampleData,
+  accessAssetFormLink,
+  exitClearanceFormLink,
+  exitInterviewFormLink,
+  onUpdateExitLinks
 }) => {
   // HR PIC Management state
   const [newPicName, setNewPicName] = useState("");
@@ -94,6 +102,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   
   // Success toast/alert message
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  // Exit Form Links state (ARC 3.8)
+  const [accessAssetInput, setAccessAssetInput] = useState(accessAssetFormLink);
+  const [exitClearanceInput, setExitClearanceInput] = useState(exitClearanceFormLink);
+  const [exitInterviewInput, setExitInterviewInput] = useState(exitInterviewFormLink);
+  const [linksSuccess, setLinksSuccess] = useState(false);
+
+  React.useEffect(() => {
+    setAccessAssetInput(accessAssetFormLink);
+    setExitClearanceInput(exitClearanceFormLink);
+    setExitInterviewInput(exitInterviewFormLink);
+  }, [accessAssetFormLink, exitClearanceFormLink, exitInterviewFormLink]);
 
   const handleExportContractsBackup = () => {
     const dataStr = JSON.stringify(contracts, null, 2);
@@ -691,6 +711,90 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
 
+      </div>
+
+      {/* Exit Form Links Section (ARC 3.8) */}
+      <div className="bg-white border border-slate-150 rounded-xl p-6 shadow-xs space-y-6" id="exit-form-links-panel">
+        <div className="border-b border-slate-100 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="font-bold text-slate-900 font-display text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5 text-rose-500" />
+              Exit Form Links
+            </h3>
+            <p className="text-xs text-slate-500 mt-1">Configure the questionnaire and checklist links for the PT Mitra Galang Sejahtera exit process.</p>
+          </div>
+        </div>
+
+        {linksSuccess && (
+          <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-lg p-3 flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 shrink-0 text-emerald-600" />
+            <span>Exit Form Links successfully saved and updated for the Email Center.</span>
+          </div>
+        )}
+
+        <div className="space-y-4 max-w-2xl">
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 font-mono">
+              1. Access & Asset Form Link (Penutupan Akses & Pengembalian Aset)
+            </label>
+            <input
+              type="text"
+              value={accessAssetInput}
+              onChange={(e) => {
+                setAccessAssetInput(e.target.value);
+                setLinksSuccess(false);
+              }}
+              placeholder="Paste Access & Asset form link here"
+              className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-hidden focus:bg-white focus:border-rose-500 transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 font-mono">
+              2. Exit Clearance Form Link (Persetujuan Handover, GA & HR)
+            </label>
+            <input
+              type="text"
+              value={exitClearanceInput}
+              onChange={(e) => {
+                setExitClearanceInput(e.target.value);
+                setLinksSuccess(false);
+              }}
+              placeholder="Paste Exit Clearance form link here"
+              className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-hidden focus:bg-white focus:border-rose-500 transition"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2 font-mono">
+              3. Exit Interview Form Link (Kuesioner Pribadi & Rahasia)
+            </label>
+            <input
+              type="text"
+              value={exitInterviewInput}
+              onChange={(e) => {
+                setExitInterviewInput(e.target.value);
+                setLinksSuccess(false);
+              }}
+              placeholder="Paste Exit Interview form link here"
+              className="w-full text-xs font-medium text-slate-800 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5 focus:outline-hidden focus:bg-white focus:border-rose-500 transition"
+            />
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                onUpdateExitLinks(accessAssetInput.trim(), exitClearanceInput.trim(), exitInterviewInput.trim());
+                setLinksSuccess(true);
+              }}
+              className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-semibold shadow-xs cursor-pointer transition flex items-center gap-2 animate-pulse-once"
+            >
+              <CheckCircle className="h-3.5 w-3.5" />
+              Simpan Link Form Exit
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Data Management Section */}

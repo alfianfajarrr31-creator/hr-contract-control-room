@@ -14,7 +14,11 @@ export enum ContractStatus {
   ConvertedToPermanent = "Converted to Permanent",
   EmployeeDeclined = "Employee Declined",
   Critical = "Critical",
-  Overdue = "Overdue"
+  Overdue = "Overdue",
+  Resigned = "Resigned",
+  EndProcess = "End Process",
+  ExitProcess = "Exit Process",
+  Closed = "Closed"
 }
 
 export enum ProbationStatus {
@@ -29,7 +33,12 @@ export enum ProbationStatus {
   ConvertedToContract = "Converted to Contract",
   ConvertedToPermanent = "Converted to Permanent",
   Critical = "Critical",
-  Overdue = "Overdue"
+  Overdue = "Overdue",
+  Resigned = "Resigned",
+  NotContinued = "Not Continued",
+  EndProcess = "End Process",
+  ExitProcess = "Exit Process",
+  Closed = "Closed"
 }
 
 export enum UserRecommendation {
@@ -104,6 +113,28 @@ export interface ContractItem {
   sourceProbationId?: string;
   createdFrom?: string;
   isSampleData?: boolean;
+  // Exit Process & Clearance Flow
+  endReason?: string;
+  noticeDate?: string;
+  lastWorkingDate?: string;
+  exitProcessStatus?: string;
+  exitDocumentsSentDate?: string;
+  exitDocumentsReturnDeadline?: string;
+  accessAssetFormStatus?: string;
+  accessAssetFormSentDate?: string;
+  accessAssetFormCompletedDate?: string;
+  assetReturnRequired?: string;
+  assetReturnStatus?: string;
+  accessClosureStatus?: string;
+  exitClearanceFormStatus?: string;
+  exitClearanceFormSentDate?: string;
+  exitClearanceCompletedDate?: string;
+  exitInterviewFormStatus?: string;
+  exitInterviewFormSentDate?: string;
+  exitInterviewStatus?: string;
+  exitInterviewCompletedDate?: string;
+  exitNotes?: string;
+  closedDate?: string;
 }
 
 export interface ProbationItem {
@@ -131,6 +162,28 @@ export interface ProbationItem {
   escalationEmailSentDate?: string;
   linkedContractId?: string;
   isSampleData?: boolean;
+  // Exit Process & Clearance Flow
+  endReason?: string;
+  noticeDate?: string;
+  lastWorkingDate?: string;
+  exitProcessStatus?: string;
+  exitDocumentsSentDate?: string;
+  exitDocumentsReturnDeadline?: string;
+  accessAssetFormStatus?: string;
+  accessAssetFormSentDate?: string;
+  accessAssetFormCompletedDate?: string;
+  assetReturnRequired?: string;
+  assetReturnStatus?: string;
+  accessClosureStatus?: string;
+  exitClearanceFormStatus?: string;
+  exitClearanceFormSentDate?: string;
+  exitClearanceCompletedDate?: string;
+  exitInterviewFormStatus?: string;
+  exitInterviewFormSentDate?: string;
+  exitInterviewStatus?: string;
+  exitInterviewCompletedDate?: string;
+  exitNotes?: string;
+  closedDate?: string;
 }
 
 // Master / Helper functions for auto calculating Priority and Days Remaining

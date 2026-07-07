@@ -69,6 +69,22 @@ const CONTRACT_FIELDS = [
   { key: "salaryNegotiationStatus", label: "Compensation Review Status", required: false, synonyms: ["salary negotiation status", "status nego", "nego gaji"] },
   { key: "hrPic", label: "HR PIC", required: false, synonyms: ["hr pic", "pic hr", "pic", "admin hr"] },
   { key: "notes", label: "Notes", required: false, synonyms: ["notes", "keterangan", "catatan", "keterangan tambahan"] },
+  { key: "endReason", label: "End Reason", required: false, synonyms: ["end reason", "alasan keluar", "alasan berhenti", "alasan resign"] },
+  { key: "noticeDate", label: "Notice Date", required: false, synonyms: ["notice date", "tanggal notice", "tgl notice"] },
+  { key: "lastWorkingDate", label: "Last Working Date", required: false, synonyms: ["last working date", "lwd", "hari terakhir", "tanggal terakhir kerja", "tgl lwd"] },
+  { key: "exitProcessStatus", label: "Exit Process Status", required: false, synonyms: ["exit process status", "status exit", "status offboarding"] },
+  { key: "accessAssetFormSentDate", label: "Access & Asset Form Sent Date", required: false, synonyms: ["access asset form sent date", "tgl kirim form asset", "form asset sent"] },
+  { key: "accessAssetFormCompletedDate", label: "Access & Asset Form Completed Date", required: false, synonyms: ["access asset form completed date", "tgl selesai form asset", "form asset completed"] },
+  { key: "assetReturnRequired", label: "Asset Return Required", required: false, synonyms: ["asset return required", "butuh pengembalian asset", "asset return"] },
+  { key: "assetReturnStatus", label: "Asset Return Status", required: false, synonyms: ["asset return status", "status pengembalian asset", "asset status"] },
+  { key: "accessClosureStatus", label: "Access Closure Status", required: false, synonyms: ["access closure status", "status penutupan akses", "akses status"] },
+  { key: "exitClearanceFormSentDate", label: "Exit Clearance Form Sent Date", required: false, synonyms: ["exit clearance form sent date", "tgl kirim form clearance", "form clearance sent"] },
+  { key: "exitClearanceCompletedDate", label: "Exit Clearance Completed Date", required: false, synonyms: ["exit clearance completed date", "tgl selesai form clearance", "form clearance completed"] },
+  { key: "exitInterviewFormSentDate", label: "Exit Interview Form Sent Date", required: false, synonyms: ["exit interview form sent date", "tgl kirim form interview", "form interview sent"] },
+  { key: "exitInterviewStatus", label: "Exit Interview Status", required: false, synonyms: ["exit interview status", "status interview", "interview status"] },
+  { key: "exitInterviewCompletedDate", label: "Exit Interview Completed Date", required: false, synonyms: ["exit interview completed date", "tgl selesai form interview", "form interview completed"] },
+  { key: "exitNotes", label: "Exit Notes", required: false, synonyms: ["exit notes", "catatan keluar", "catatan offboarding", "catatan exit"] },
+  { key: "closedDate", label: "Closed Date", required: false, synonyms: ["closed date", "tanggal ditutup", "tanggal closed", "tgl closed"] }
 ];
 
 const PROBATION_FIELDS = [
@@ -86,6 +102,22 @@ const PROBATION_FIELDS = [
   { key: "newEmploymentStatus", label: "New Employment Status", required: false, synonyms: ["new employment status", "status baru", "status karyawan baru"] },
   { key: "hrPic", label: "HR PIC", required: false, synonyms: ["hr pic", "pic hr", "pic", "admin hr"] },
   { key: "notes", label: "Notes", required: false, synonyms: ["notes", "keterangan", "catatan", "keterangan tambahan"] },
+  { key: "endReason", label: "End Reason", required: false, synonyms: ["end reason", "alasan keluar", "alasan berhenti", "alasan resign"] },
+  { key: "noticeDate", label: "Notice Date", required: false, synonyms: ["notice date", "tanggal notice", "tgl notice"] },
+  { key: "lastWorkingDate", label: "Last Working Date", required: false, synonyms: ["last working date", "lwd", "hari terakhir", "tanggal terakhir kerja", "tgl lwd"] },
+  { key: "exitProcessStatus", label: "Exit Process Status", required: false, synonyms: ["exit process status", "status exit", "status offboarding"] },
+  { key: "accessAssetFormSentDate", label: "Access & Asset Form Sent Date", required: false, synonyms: ["access asset form sent date", "tgl kirim form asset", "form asset sent"] },
+  { key: "accessAssetFormCompletedDate", label: "Access & Asset Form Completed Date", required: false, synonyms: ["access asset form completed date", "tgl selesai form asset", "form asset completed"] },
+  { key: "assetReturnRequired", label: "Asset Return Required", required: false, synonyms: ["asset return required", "butuh pengembalian asset", "asset return"] },
+  { key: "assetReturnStatus", label: "Asset Return Status", required: false, synonyms: ["asset return status", "status pengembalian asset", "asset status"] },
+  { key: "accessClosureStatus", label: "Access Closure Status", required: false, synonyms: ["access closure status", "status penutupan akses", "akses status"] },
+  { key: "exitClearanceFormSentDate", label: "Exit Clearance Form Sent Date", required: false, synonyms: ["exit clearance form sent date", "tgl kirim form clearance", "form clearance sent"] },
+  { key: "exitClearanceCompletedDate", label: "Exit Clearance Completed Date", required: false, synonyms: ["exit clearance completed date", "tgl selesai form clearance", "form clearance completed"] },
+  { key: "exitInterviewFormSentDate", label: "Exit Interview Form Sent Date", required: false, synonyms: ["exit interview form sent date", "tgl kirim form interview", "form interview sent"] },
+  { key: "exitInterviewStatus", label: "Exit Interview Status", required: false, synonyms: ["exit interview status", "status interview", "interview status"] },
+  { key: "exitInterviewCompletedDate", label: "Exit Interview Completed Date", required: false, synonyms: ["exit interview completed date", "tgl selesai form interview", "form interview completed"] },
+  { key: "exitNotes", label: "Exit Notes", required: false, synonyms: ["exit notes", "catatan keluar", "catatan offboarding", "catatan exit"] },
+  { key: "closedDate", label: "Closed Date", required: false, synonyms: ["closed date", "tanggal ditutup", "tanggal closed", "tgl closed"] }
 ];
 
 export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
@@ -459,6 +491,27 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
     if (hasRawValue('hrPic')) updated.hrPic = cleaned.hrPic;
     if (hasRawValue('notes')) updated.notes = cleaned.notes;
 
+    // Exit tracking fields (ARC 3.8)
+    if (hasRawValue('endReason')) updated.endReason = cleaned.endReason;
+    if (hasRawValue('noticeDate')) updated.noticeDate = cleaned.noticeDate;
+    if (hasRawValue('lastWorkingDate')) updated.lastWorkingDate = cleaned.lastWorkingDate;
+    if (hasRawValue('exitProcessStatus')) updated.exitProcessStatus = cleaned.exitProcessStatus;
+    if (hasRawValue('accessAssetFormSentDate')) updated.accessAssetFormSentDate = cleaned.accessAssetFormSentDate;
+    if (hasRawValue('accessAssetFormCompletedDate')) updated.accessAssetFormCompletedDate = cleaned.accessAssetFormCompletedDate;
+    if (hasRawValue('assetReturnRequired')) updated.assetReturnRequired = cleaned.assetReturnRequired;
+    if (hasRawValue('assetReturnStatus')) updated.assetReturnStatus = cleaned.assetReturnStatus;
+    if (hasRawValue('accessClosureStatus')) updated.accessClosureStatus = cleaned.accessClosureStatus;
+    if (hasRawValue('exitClearanceFormSentDate')) updated.exitClearanceFormSentDate = cleaned.exitClearanceFormSentDate;
+    if (hasRawValue('exitClearanceCompletedDate')) updated.exitClearanceCompletedDate = cleaned.exitClearanceCompletedDate;
+    if (hasRawValue('exitInterviewFormSentDate')) updated.exitInterviewFormSentDate = cleaned.exitInterviewFormSentDate;
+    if (hasRawValue('exitInterviewStatus')) {
+      updated.exitInterviewStatus = cleaned.exitInterviewStatus;
+      updated.exitInterviewFormStatus = cleaned.exitInterviewFormStatus;
+    }
+    if (hasRawValue('exitInterviewCompletedDate')) updated.exitInterviewCompletedDate = cleaned.exitInterviewCompletedDate;
+    if (hasRawValue('exitNotes')) updated.exitNotes = cleaned.exitNotes;
+    if (hasRawValue('closedDate')) updated.closedDate = cleaned.closedDate;
+
     updated.isSampleData = false;
     return updated;
   };
@@ -490,6 +543,27 @@ export const ImportExcelView: React.FC<ImportExcelViewProps> = ({
     
     if (hasRawValue('hrPic')) updated.hrPic = cleaned.hrPic;
     if (hasRawValue('notes')) updated.notes = cleaned.notes;
+
+    // Exit tracking fields (ARC 3.8)
+    if (hasRawValue('endReason')) updated.endReason = cleaned.endReason;
+    if (hasRawValue('noticeDate')) updated.noticeDate = cleaned.noticeDate;
+    if (hasRawValue('lastWorkingDate')) updated.lastWorkingDate = cleaned.lastWorkingDate;
+    if (hasRawValue('exitProcessStatus')) updated.exitProcessStatus = cleaned.exitProcessStatus;
+    if (hasRawValue('accessAssetFormSentDate')) updated.accessAssetFormSentDate = cleaned.accessAssetFormSentDate;
+    if (hasRawValue('accessAssetFormCompletedDate')) updated.accessAssetFormCompletedDate = cleaned.accessAssetFormCompletedDate;
+    if (hasRawValue('assetReturnRequired')) updated.assetReturnRequired = cleaned.assetReturnRequired;
+    if (hasRawValue('assetReturnStatus')) updated.assetReturnStatus = cleaned.assetReturnStatus;
+    if (hasRawValue('accessClosureStatus')) updated.accessClosureStatus = cleaned.accessClosureStatus;
+    if (hasRawValue('exitClearanceFormSentDate')) updated.exitClearanceFormSentDate = cleaned.exitClearanceFormSentDate;
+    if (hasRawValue('exitClearanceCompletedDate')) updated.exitClearanceCompletedDate = cleaned.exitClearanceCompletedDate;
+    if (hasRawValue('exitInterviewFormSentDate')) updated.exitInterviewFormSentDate = cleaned.exitInterviewFormSentDate;
+    if (hasRawValue('exitInterviewStatus')) {
+      updated.exitInterviewStatus = cleaned.exitInterviewStatus;
+      updated.exitInterviewFormStatus = cleaned.exitInterviewFormStatus;
+    }
+    if (hasRawValue('exitInterviewCompletedDate')) updated.exitInterviewCompletedDate = cleaned.exitInterviewCompletedDate;
+    if (hasRawValue('exitNotes')) updated.exitNotes = cleaned.exitNotes;
+    if (hasRawValue('closedDate')) updated.closedDate = cleaned.closedDate;
 
     updated.isSampleData = false;
     return updated;

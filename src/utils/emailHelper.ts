@@ -15,7 +15,13 @@ export type EmailTemplateType =
   | "signed-followup"
   | "escalation"
   | "probation-request"
-  | "probation-approval";
+  | "probation-approval"
+  | "exit-notice"
+  | "exit-asset"
+  | "exit-clearance"
+  | "exit-interview"
+  | "exit-documents-request"
+  | "exit-follow-up";
 
 export interface EmailDraft {
   subject: string;
@@ -111,6 +117,69 @@ export function getRelevantRecordsForEmailType(
         )
       };
 
+    case "exit-notice":
+    case "exit-asset":
+    case "exit-clearance":
+    case "exit-interview":
+      return {
+        contracts: contracts.filter(c => 
+          ["Resigned", "End Process", "Exit Process", "Closed"].includes(c.contractStatus) ||
+          (c.exitProcessStatus && c.exitProcessStatus !== "Not Started")
+        ),
+        probations: probations.filter(p => 
+          ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process", "Closed"].includes(p.probationStatus) ||
+          (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
+        )
+      };
+
+    case "exit-documents-request": {
+      const isOffboardingC = (c: ContractItem) => {
+        const statuses = ["Resigned", "Not Renewed", "End Process", "Exit Process"];
+        const endReasons = ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"];
+        const isMatch = statuses.includes(c.contractStatus) || (c.endReason && endReasons.includes(c.endReason));
+        return !!isMatch && !!c.lastWorkingDate && (!c.exitDocumentsSentDate || c.exitDocumentsSentDate.trim() === "");
+      };
+      const isOffboardingP = (p: ProbationItem) => {
+        const statuses = ["Resigned", "Not Continued", "Failed Probation", "End Process", "Exit Process"];
+        const endReasons = ["Resigned", "Not Renewed", "Failed Probation", "Employee Declined", "End Process", "Exit Process"];
+        const isMatch = statuses.includes(p.probationStatus) || (p.endReason && endReasons.includes(p.endReason));
+        return !!isMatch && !!p.lastWorkingDate && (!p.exitDocumentsSentDate || p.exitDocumentsSentDate.trim() === "");
+      };
+      return {
+        contracts: contracts.filter(isOffboardingC),
+        probations: probations.filter(isOffboardingP)
+      };
+    }
+
+    case "exit-follow-up": {
+      const isFollowUpC = (c: ContractItem) => {
+        const hasSent = !!c.exitDocumentsSentDate && c.exitDocumentsSentDate.trim() !== "";
+        const notClosed = c.exitProcessStatus !== "Closed";
+        const formPending = !c.accessAssetFormCompletedDate || 
+                            !c.exitClearanceCompletedDate || 
+                            !c.exitInterviewCompletedDate ||
+                            c.accessAssetFormStatus === "Pending" ||
+                            c.exitClearanceFormStatus === "Pending" ||
+                            ["Pending", "Sent"].includes(c.exitInterviewFormStatus || "");
+        return hasSent && notClosed && formPending;
+      };
+      const isFollowUpP = (p: ProbationItem) => {
+        const hasSent = !!p.exitDocumentsSentDate && p.exitDocumentsSentDate.trim() !== "";
+        const notClosed = p.exitProcessStatus !== "Closed";
+        const formPending = !p.accessAssetFormCompletedDate || 
+                            !p.exitClearanceCompletedDate || 
+                            !p.exitInterviewCompletedDate ||
+                            p.accessAssetFormStatus === "Pending" ||
+                            p.exitClearanceFormStatus === "Pending" ||
+                            ["Pending", "Sent"].includes(p.exitInterviewFormStatus || "");
+        return hasSent && notClosed && formPending;
+      };
+      return {
+        contracts: contracts.filter(isFollowUpC),
+        probations: probations.filter(isFollowUpP)
+      };
+    }
+
     default:
       return { contracts: [], probations: [] };
   }
@@ -201,9 +270,48 @@ export function generateEmailSubject(
       const suffix = records.probations.length > 2 ? " & Batch" : "";
       return `Approval Kelulusan Probation - [${names || "Draft"}${suffix}]`;
     }
+
+    case "exit-notice": {
+      const name = records.contracts[0]?.employeeName || records.probations[0]?.employeeName || "[Nama]";
+      return `Pemberitahuan Offboarding & Last Working Day (LWD) - ${name}`;
+    }
+    case "exit-asset": {
+      const name = records.contracts[0]?.employeeName || records.probations[0]?.employeeName || "[Nama]";
+      return `[Form 1] Penutupan Akses & Pengembalian Asset - ${name}`;
+    }
+    case "exit-clearance": {
+      const name = records.contracts[0]?.employeeName || records.probations[0]?.employeeName || "[Nama]";
+      return `[Form 2] Exit Clearance Form - ${name}`;
+    }
+    case "exit-interview": {
+      const name = records.contracts[0]?.employeeName || records.probations[0]?.employeeName || "[Nama]";
+      return `[Form 3] Undangan Exit Interview - ${name}`;
+    }
+    case "exit-documents-request": {
+      const name = records.contracts[0]?.employeeName || records.probations[0]?.employeeName || "[Nama Karyawan]";
+      return `Dokumen Offboarding - ${name}`;
+    }
+    case "exit-follow-up": {
+      const name = records.contracts[0]?.employeeName || records.probations[0]?.employeeName || "[Nama Karyawan]";
+      return `Follow Up Dokumen Offboarding - ${name}`;
+    }
     
     default:
       return "Notification HR - Contract & Probation Control Room";
+  }
+}
+
+export function getReturnDeadline(lastWorkingDateStr?: string): string {
+  if (!lastWorkingDateStr) return "[Return Deadline]";
+  try {
+    const d = new Date(lastWorkingDateStr);
+    d.setDate(d.getDate() - 2);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  } catch (e) {
+    return "[Return Deadline]";
   }
 }
 
@@ -212,7 +320,8 @@ export function generateEmailBody(
   type: EmailTemplateType,
   records: { contracts: ContractItem[]; probations: ProbationItem[] },
   source: "contract" | "probation" | "both",
-  currentMonthYear: string
+  currentMonthYear: string,
+  exitLinks?: { accessAsset: string; exitClearance: string; exitInterview: string }
 ): string {
   const contractList = records.contracts.length > 0 ? formatContractListForEmail(records.contracts) : "";
   const probationList = records.probations.length > 0 ? formatProbationListForEmail(records.probations) : "";
@@ -363,6 +472,210 @@ Terima kasih.
 Best regards,
 HR Team`;
 
+    case "exit-notice": {
+      const lwd = source === "contract" ? (records.contracts[0]?.lastWorkingDate || "[LWD]") : (records.probations[0]?.lastWorkingDate || "[LWD]");
+      const dept = source === "contract" ? (records.contracts[0]?.department || "[Dept]") : (records.probations[0]?.department || "[Dept]");
+      const pos = source === "contract" ? (records.contracts[0]?.position || "[Posisi]") : (records.probations[0]?.position || "[Posisi]");
+      return `Dear Bapak/Ibu ${managerName} & Rekan ${employeeName},
+
+Dengan email ini kami sampaikan pemberitahuan resmi mengenai akhir masa kerja (offboarding) Rekan ${employeeName} dari departemen ${dept} (${pos}).
+
+Berikut detail informasi LWD (Last Working Day):
+* Nama: ${employeeName}
+* Departemen: ${dept}
+* Jabatan: ${pos}
+* Last Working Day (LWD): ${lwd}
+
+Rekan ${employeeName} diharapkan untuk segera menyelesaikan proses serah terima pekerjaan (handover) sebelum tanggal tersebut. HR akan memandu proses pengembalian asset, penutupan akses, exit clearance, serta exit interview dalam email terpisah.
+
+Terima kasih atas segala kontribusi yang diberikan selama masa kerja.
+
+Best regards,
+HR Team`;
+    }
+
+    case "exit-asset": {
+      const lwd = source === "contract" ? (records.contracts[0]?.lastWorkingDate || "[LWD]") : (records.probations[0]?.lastWorkingDate || "[LWD]");
+      const accessAsset = (exitLinks?.accessAsset || "").trim() || "[Access & Asset Form Link]";
+      return `Dear Rekan ${employeeName},
+
+Menjelang Last Working Day (LWD) Anda pada ${lwd}, mohon bantuan Anda untuk segera melengkapi Form Penutupan Akses dan Pengembalian Asset perusahaan.
+
+Formulir ini bersifat wajib diisi bagi seluruh karyawan offboarding baik yang memiliki inventaris asset tetap ataupun tidak:
+* Link Form: ${accessAsset}
+
+Catatan:
+* Penutupan Akun/Akses (Email, VPN, Internal Portal, Slack/Teams) akan dieksekusi secara otomatis oleh IT Support pada LWD.
+* Seluruh asset milik perusahaan wajib diserahkan kembali ke GA / IT Support paling lambat pada hari kerja terakhir Anda.
+
+Mohon konfirmasi jika formulir sudah dilengkapi agar proses clearance dapat berlanjut ke tahap berikutnya.
+
+Terima kasih atas kerja samanya.
+
+Best regards,
+HR Team`;
+    }
+
+    case "exit-clearance": {
+      const lwd = source === "contract" ? (records.contracts[0]?.lastWorkingDate || "[LWD]") : (records.probations[0]?.lastWorkingDate || "[LWD]");
+      const exitClearance = (exitLinks?.exitClearance || "").trim() || "[Exit Clearance Form Link]";
+      return `Dear Rekan ${employeeName},
+
+Tahap Penutupan Akses & Pengembalian Asset Anda telah kami terima. Proses offboarding Anda sekarang dilanjutkan ke Form Exit Clearance.
+
+Mohon melengkapi formulir clearance di bawah ini untuk verifikasi penyelesaian tanggung jawab administrasi dengan tim Finance, GA, dan departemen terkait:
+* Link Form: ${exitClearance}
+
+Proses verifikasi clearance ini penting untuk memastikan hak-hak akhir Anda (termasuk surat referensi kerja) dapat diproses tepat waktu.
+
+Terima kasih atas perhatian dan kerja samanya.
+
+Best regards,
+HR Team`;
+    }
+
+    case "exit-interview": {
+      const exitInterview = (exitLinks?.exitInterview || "").trim() || "[Exit Interview Form Link]";
+      return `Dear Rekan ${employeeName},
+
+Sebagai bagian dari proses offboarding, kami mengundang Anda untuk mengisi kuesioner Exit Interview.
+
+Masukan dan evaluasi Anda selama bekerja di perusahaan sangat bernilai bagi perbaikan internal kami. Kami menjamin kerahasiaan isi tanggapan/interview Anda secara profesional (aplikasi HR hanya memantau status pengisian form dan tidak mencatat isi jawaban curhatan Anda):
+* Link Form: ${exitInterview}
+
+Setelah melengkapi form ini, silakan jadwalkan sesi tatap muka singkat (15 menit) dengan tim HR melalui kalender terlampir untuk verifikasi akhir.
+
+Terima kasih atas dedikasi Anda selama ini.
+
+Best regards,
+HR Team`;
+    }
+
+    case "exit-documents-request": {
+      const lwd = source === "contract"
+        ? (records.contracts[0]?.lastWorkingDate || "[LWD]")
+        : (records.probations[0]?.lastWorkingDate || "[LWD]");
+      const returnDeadline = getReturnDeadline(lwd === "[LWD]" ? undefined : lwd);
+
+      const accessAsset = (exitLinks?.accessAsset || "").trim() || "[Access & Asset Form Link]";
+      const exitClearance = (exitLinks?.exitClearance || "").trim() || "[Exit Clearance Form Link]";
+      const exitInterview = (exitLinks?.exitInterview || "").trim() || "[Exit Interview Form Link]";
+
+      return `Dear ${employeeName},
+
+Terima kasih atas kontribusi dan kerja sama yang telah diberikan selama bekerja di PT Mitra Galang Sejahtera. Kami sangat mengapresiasi dedikasi serta kinerja yang telah diberikan kepada perusahaan.
+
+Sehubungan dengan proses offboarding, berikut tahapan dan dokumen yang perlu dilengkapi:
+
+1. Form Akses & Aset (Penutupan Akses, Sistem & Pengembalian Aset)
+   Form ini digunakan untuk proses penutupan seluruh akses sistem serta pengembalian aset perusahaan apabila ada.
+
+Karyawan diminta untuk berkoordinasi langsung dengan masing-masing PIC terkait guna memastikan:
+* Penonaktifan akses sistem telah dilakukan
+* Pengembalian aset perusahaan telah diterima
+
+Setiap PIC terkait dimohon memberikan tanda tangan pada form tersebut sebagai bukti penyelesaian.
+
+Link/Form:
+${accessAsset}
+
+2. Form Exit Clearance
+   Setelah Form Akses & Aset selesai dan telah ditandatangani oleh seluruh PIC terkait, selanjutnya Karyawan diminta mengisi Form Exit Clearance.
+
+Form ini memerlukan tanda tangan dari:
+* Atasan langsung, sebagai konfirmasi bahwa proses handover pekerjaan telah dilakukan
+* Tim GA, sebagai konfirmasi bahwa aset dan kebutuhan operasional telah diselesaikan
+* Tim HR, sebagai konfirmasi bahwa administrasi dan keperluan personalia telah diselesaikan, termasuk verifikasi Form Akses
+
+Setelah seluruh tanda tangan diperoleh, Karyawan dapat menandatangani pada bagian akhir Form Exit Clearance.
+
+Link/Form:
+${exitClearance}
+
+3. Form Exit Interview
+   Tahap terakhir adalah pengisian Form Exit Interview.
+
+Form ini bersifat pribadi dan rahasia, bertujuan untuk mendapatkan masukan serta evaluasi sebagai bahan perbaikan perusahaan ke depannya.
+
+Form ini hanya memerlukan tanda tangan dari Karyawan terkait pada bagian akhir.
+
+Link/Form:
+${exitInterview}
+
+Mohon agar seluruh dokumen yang telah lengkap dan ditandatangani dapat dikembalikan maksimal H-2 sebelum tanggal terakhir bekerja, yaitu ${returnDeadline}.
+
+Apabila terdapat pertanyaan terkait proses ini, silakan menghubungi tim HR.
+
+Terima kasih atas perhatian dan kerja samanya.
+
+Regards,
+
+HR Department
+
+Head Office
+Menara Caraka Lantai 2
+Kawasan Mega Kuningan, Jl. Mega Kuningan Barat Blok E No.4.7, RT.5/RW.2
+Kuningan, Kuningan Timur, Kecamatan Setiabudi, Kota Jakarta Selatan, Daerah Khusus Ibukota Jakarta 12950`;
+    }
+
+    case "exit-follow-up": {
+      const lwd = source === "contract"
+        ? (records.contracts[0]?.lastWorkingDate || "[LWD]")
+        : (records.probations[0]?.lastWorkingDate || "[LWD]");
+      const returnDeadline = getReturnDeadline(lwd === "[LWD]" ? undefined : lwd);
+
+      const accessAsset = (exitLinks?.accessAsset || "").trim() || "[Access & Asset Form Link]";
+      const exitClearance = (exitLinks?.exitClearance || "").trim() || "[Exit Clearance Form Link]";
+      const exitInterview = (exitLinks?.exitInterview || "").trim() || "[Exit Interview Form Link]";
+
+      const accessAssetStatus = source === "contract"
+        ? (records.contracts[0]?.accessAssetFormStatus || "Pending")
+        : (records.probations[0]?.accessAssetFormStatus || "Pending");
+      const exitClearanceStatus = source === "contract"
+        ? (records.contracts[0]?.exitClearanceFormStatus || "Pending")
+        : (records.probations[0]?.exitClearanceFormStatus || "Pending");
+      const exitInterviewStatus = source === "contract"
+        ? (records.contracts[0]?.exitInterviewFormStatus || "Sent")
+        : (records.probations[0]?.exitInterviewFormStatus || "Sent");
+
+      const pendingList: string[] = [];
+      if (accessAssetStatus !== "Completed") pendingList.push("1. Form Akses & Aset (Penutupan Akses & Pengembalian Aset)");
+      if (exitClearanceStatus !== "Completed") pendingList.push("2. Form Exit Clearance (Persetujuan Handover, GA & HR)");
+      if (exitInterviewStatus !== "Completed" && exitInterviewStatus !== "Declined") pendingList.push("3. Form Exit Interview (Kuesioner Pribadi & Rahasia)");
+
+      const pendingStr = pendingList.length > 0 ? pendingList.join("\n") : "Tidak ada dokumen pending.";
+
+      return `Dear Rekan ${employeeName},
+
+Kami ingin menindaklanjuti proses offboarding Anda di PT Mitra Galang Sejahtera. Berdasarkan data kami, beberapa dokumen offboarding Anda masih dalam status belum lengkap.
+
+Berikut adalah daftar dokumen yang masih membutuhkan penyelesaian Anda:
+${pendingStr}
+
+Untuk melengkapinya kembali, silakan gunakan link formulir berikut sesuai kebutuhan:
+
+1. Form Akses & Aset:
+Link: ${accessAsset}
+Status Saat Ini: ${accessAssetStatus}
+
+2. Form Exit Clearance:
+Link: ${exitClearance}
+Status Saat Ini: ${exitClearanceStatus}
+
+3. Form Exit Interview:
+Link: ${exitInterview}
+Status Saat Ini: ${exitInterviewStatus}
+
+Mohon agar seluruh dokumen tersebut dapat dilengkapi dan dikembalikan kepada kami paling lambat pada H-2 sebelum hari kerja terakhir Anda, yaitu ${returnDeadline}.
+
+Jika Anda memiliki pertanyaan atau memerlukan bantuan teknis, silakan hubungi tim HR.
+
+Terima kasih atas kerja samanya.
+
+Regards,
+HR Department`;
+    }
+
     default:
       return "";
   }
@@ -399,6 +712,37 @@ export function markEmailSent(
         case "escalation":
           updated.escalationEmailSentDate = sentDateStr;
           break;
+        case "exit-notice":
+          updated.exitNotes = `${updated.exitNotes || ""}\n[${sentDateStr}] Exit notice email sent.`.trim();
+          break;
+        case "exit-asset":
+          updated.accessAssetFormSentDate = sentDateStr;
+          updated.exitProcessStatus = "Access & Asset Form Pending";
+          break;
+        case "exit-clearance":
+          updated.exitClearanceFormSentDate = sentDateStr;
+          updated.exitProcessStatus = "Exit Clearance Pending";
+          break;
+        case "exit-interview":
+          updated.exitInterviewFormSentDate = sentDateStr;
+          updated.exitInterviewStatus = "Sent";
+          break;
+        case "exit-documents-request":
+          updated.exitDocumentsSentDate = sentDateStr;
+          updated.accessAssetFormSentDate = sentDateStr;
+          updated.exitClearanceFormSentDate = sentDateStr;
+          updated.exitInterviewFormSentDate = sentDateStr;
+          updated.exitProcessStatus = "Exit Documents Sent";
+          updated.accessAssetFormStatus = "Pending";
+          updated.exitClearanceFormStatus = "Pending";
+          updated.exitInterviewFormStatus = "Sent";
+          if (updated.lastWorkingDate) {
+            updated.exitDocumentsReturnDeadline = getReturnDeadline(updated.lastWorkingDate);
+          }
+          break;
+        case "exit-follow-up":
+          updated.exitNotes = `${updated.exitNotes || ""}\n[${sentDateStr}] Exit documents follow-up sent.`.trim();
+          break;
       }
       return updated;
     }
@@ -419,6 +763,37 @@ export function markEmailSent(
           break;
         case "escalation":
           updated.escalationEmailSentDate = sentDateStr;
+          break;
+        case "exit-notice":
+          updated.exitNotes = `${updated.exitNotes || ""}\n[${sentDateStr}] Exit notice email sent.`.trim();
+          break;
+        case "exit-asset":
+          updated.accessAssetFormSentDate = sentDateStr;
+          updated.exitProcessStatus = "Access & Asset Form Pending";
+          break;
+        case "exit-clearance":
+          updated.exitClearanceFormSentDate = sentDateStr;
+          updated.exitProcessStatus = "Exit Clearance Pending";
+          break;
+        case "exit-interview":
+          updated.exitInterviewFormSentDate = sentDateStr;
+          updated.exitInterviewStatus = "Sent";
+          break;
+        case "exit-documents-request":
+          updated.exitDocumentsSentDate = sentDateStr;
+          updated.accessAssetFormSentDate = sentDateStr;
+          updated.exitClearanceFormSentDate = sentDateStr;
+          updated.exitInterviewFormSentDate = sentDateStr;
+          updated.exitProcessStatus = "Exit Documents Sent";
+          updated.accessAssetFormStatus = "Pending";
+          updated.exitClearanceFormStatus = "Pending";
+          updated.exitInterviewFormStatus = "Sent";
+          if (updated.lastWorkingDate) {
+            updated.exitDocumentsReturnDeadline = getReturnDeadline(updated.lastWorkingDate);
+          }
+          break;
+        case "exit-follow-up":
+          updated.exitNotes = `${updated.exitNotes || ""}\n[${sentDateStr}] Exit documents follow-up sent.`.trim();
           break;
       }
       return updated;

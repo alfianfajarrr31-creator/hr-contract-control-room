@@ -6,10 +6,11 @@ import {
   ApprovalStatus, 
   SalaryNegotiationStatus,
   isContractNumberExists,
-  getNextContractSequence
+  getNextContractSequence,
+  getTodayDateStr
 } from "../types";
 import { DEPARTMENTS } from "../seedData";
-import { Save, ArrowLeft, AlertCircle } from "lucide-react";
+import { Save, ArrowLeft, AlertCircle, ChevronDown, ChevronUp, Info, CheckCircle, HelpCircle } from "lucide-react";
 
 interface ContractFormProps {
   contractToEdit: ContractItem | null;
@@ -80,7 +81,101 @@ export const ContractForm: React.FC<ContractFormProps> = ({
   const [hrPic, setHrPic] = useState(() => hrPics[0] || "HR Team");
   const [notes, setNotes] = useState("");
 
+  // ARC 3.8 - Exit Process & Clearance Flow states
+  const [isExitSectionOpen, setIsExitSectionOpen] = useState(false);
+  const [endReason, setEndReason] = useState("");
+  const [noticeDate, setNoticeDate] = useState("");
+  const [lastWorkingDate, setLastWorkingDate] = useState("");
+  const [exitProcessStatus, setExitProcessStatus] = useState("Not Started");
+  const [accessAssetFormSentDate, setAccessAssetFormSentDate] = useState("");
+  const [accessAssetFormCompletedDate, setAccessAssetFormCompletedDate] = useState("");
+  const [assetReturnRequired, setAssetReturnRequired] = useState("Unknown");
+  const [assetReturnStatus, setAssetReturnStatus] = useState("Not Started");
+  const [accessClosureStatus, setAccessClosureStatus] = useState("Not Started");
+  const [exitClearanceFormSentDate, setExitClearanceFormSentDate] = useState("");
+  const [exitClearanceCompletedDate, setExitClearanceCompletedDate] = useState("");
+  const [exitInterviewFormSentDate, setExitInterviewFormSentDate] = useState("");
+  const [exitInterviewStatus, setExitInterviewStatus] = useState("Not Sent");
+  const [exitInterviewCompletedDate, setExitInterviewCompletedDate] = useState("");
+  const [exitNotes, setExitNotes] = useState("");
+  const [closedDate, setClosedDate] = useState("");
+
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Auto expand exit process section based on status
+  useEffect(() => {
+    const exitStatuses: string[] = ["Resigned", "Not Renewed", "Employee Declined", "End Process", "Exit Process", "Closed"];
+    if (exitStatuses.includes(contractStatus)) {
+      setIsExitSectionOpen(true);
+    }
+  }, [contractStatus]);
+
+  // Quick Action Handlers for Exit Process (ARC 3.8)
+  const handleMarkResigned = () => {
+    setContractStatus(ContractStatus.Resigned);
+    setEndReason("Resigned");
+    if (!noticeDate) setNoticeDate(getTodayDateStr());
+    setExitProcessStatus("Waiting Last Working Date");
+  };
+
+  const handleMarkNotRenewed = () => {
+    setContractStatus(ContractStatus.NotRenewed);
+    setEndReason("Not Renewed");
+    setExitProcessStatus("Waiting Last Working Date");
+  };
+
+  const handleStartExitProcess = () => {
+    setContractStatus(ContractStatus.ExitProcess);
+    setExitProcessStatus("Access & Asset Form Pending");
+    if (!accessAssetFormSentDate) setAccessAssetFormSentDate(getTodayDateStr());
+    if (!assetReturnRequired || assetReturnRequired === "Unknown") setAssetReturnRequired("Unknown");
+    setAssetReturnStatus("Pending");
+    setAccessClosureStatus("Requested");
+  };
+
+  const handleMarkAccessAssetCompleted = () => {
+    if (!accessAssetFormCompletedDate) setAccessAssetFormCompletedDate(getTodayDateStr());
+    setExitProcessStatus("Access & Asset Form Completed");
+    if (assetReturnStatus !== "Not Required") setAssetReturnStatus("Completed");
+    setAccessClosureStatus("Completed");
+  };
+
+  const handleMarkExitClearanceCompleted = () => {
+    if (!exitClearanceCompletedDate) setExitClearanceCompletedDate(getTodayDateStr());
+    setExitProcessStatus("Exit Clearance Completed");
+  };
+
+  const handleMarkExitInterviewCompleted = () => {
+    if (!exitInterviewCompletedDate) setExitInterviewCompletedDate(getTodayDateStr());
+    setExitInterviewStatus("Completed");
+    setExitProcessStatus("Exit Interview Completed");
+  };
+
+  const handleMarkClosed = () => {
+    const issues = [];
+    if (!accessAssetFormCompletedDate) issues.push("- Form Akses & Asset belum selesai");
+    if (!exitClearanceCompletedDate) issues.push("- Form Exit Clearance belum selesai");
+    if (!["Completed", "Employee Declined", "Not Required"].includes(exitInterviewStatus)) {
+      issues.push("- Status Exit Interview bukan Completed, Employee Declined, atau Not Required");
+    }
+    if (accessClosureStatus !== "Completed") issues.push("- Penutupan Akses belum Completed");
+    if (!["Completed", "Not Required"].includes(assetReturnStatus)) {
+      issues.push("- Pengembalian Asset belum Completed atau Not Required");
+    }
+
+    let msg = "Apakah Anda yakin ingin menutup proses exit ini?";
+    if (issues.length > 0) {
+      msg += "\n\nPeringatan beberapa checklist belum terpenuhi:\n" + issues.join("\n") + "\n\nTetap lanjutkan penutupan?";
+    }
+
+    if (window.confirm(msg)) {
+      setContractStatus(ContractStatus.Closed);
+      setExitProcessStatus("Closed");
+      setClosedDate(getTodayDateStr());
+    }
+  };
+
+
 
   // Load editing item if applicable
   useEffect(() => {
@@ -104,13 +199,31 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setUserRecommendation(contractToEdit.userRecommendation);
       setDirectorApproval(contractToEdit.directorApproval);
       setHeadHRReview(contractToEdit.headHRReview);
-      setContractDraftDate(contractToEdit.contractDraftDate);
-      setContractSentDate(contractToEdit.contractSentDate);
-      setSignedDeadline(contractToEdit.signedDeadline);
-      setSignedReceivedDate(contractToEdit.signedReceivedDate);
+      setContractDraftDate(contractToEdit.contractDraftDate || "");
+      setContractSentDate(contractToEdit.contractSentDate || "");
+      setSignedDeadline(contractToEdit.signedDeadline || "");
+      setSignedReceivedDate(contractToEdit.signedReceivedDate || "");
       setContractStatus(contractToEdit.contractStatus);
       setHrPic(contractToEdit.hrPic);
       setNotes(contractToEdit.notes);
+
+      // Exit process fields
+      setEndReason(contractToEdit.endReason || "");
+      setNoticeDate(contractToEdit.noticeDate || "");
+      setLastWorkingDate(contractToEdit.lastWorkingDate || "");
+      setExitProcessStatus(contractToEdit.exitProcessStatus || "Not Started");
+      setAccessAssetFormSentDate(contractToEdit.accessAssetFormSentDate || "");
+      setAccessAssetFormCompletedDate(contractToEdit.accessAssetFormCompletedDate || "");
+      setAssetReturnRequired(contractToEdit.assetReturnRequired || "Unknown");
+      setAssetReturnStatus(contractToEdit.assetReturnStatus || "Not Started");
+      setAccessClosureStatus(contractToEdit.accessClosureStatus || "Not Started");
+      setExitClearanceFormSentDate(contractToEdit.exitClearanceFormSentDate || "");
+      setExitClearanceCompletedDate(contractToEdit.exitClearanceCompletedDate || "");
+      setExitInterviewFormSentDate(contractToEdit.exitInterviewFormSentDate || "");
+      setExitInterviewStatus(contractToEdit.exitInterviewStatus || "Not Sent");
+      setExitInterviewCompletedDate(contractToEdit.exitInterviewCompletedDate || "");
+      setExitNotes(contractToEdit.exitNotes || "");
+      setClosedDate(contractToEdit.closedDate || "");
     } else {
       // Generate some default dummy data
       const randomIdNum = Math.floor(100 + Math.random() * 900);
@@ -140,6 +253,24 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       setContractStatus(ContractStatus.NeedReview);
       setHrPic(hrPics[0] || "HR Team");
       setNotes("");
+
+      // Reset exit process fields
+      setEndReason("");
+      setNoticeDate("");
+      setLastWorkingDate("");
+      setExitProcessStatus("Not Started");
+      setAccessAssetFormSentDate("");
+      setAccessAssetFormCompletedDate("");
+      setAssetReturnRequired("Unknown");
+      setAssetReturnStatus("Not Started");
+      setAccessClosureStatus("Not Started");
+      setExitClearanceFormSentDate("");
+      setExitClearanceCompletedDate("");
+      setExitInterviewFormSentDate("");
+      setExitInterviewStatus("Not Sent");
+      setExitInterviewCompletedDate("");
+      setExitNotes("");
+      setClosedDate("");
     }
     setErrors({});
   }, [contractToEdit]);
@@ -209,7 +340,36 @@ export const ContractForm: React.FC<ContractFormProps> = ({
       salaryNegotiationStatus,
       hrPic,
       notes,
-      priority: contractToEdit ? contractToEdit.priority : "Low" // will be computed in App state on save
+      priority: contractToEdit ? contractToEdit.priority : "Low", // will be computed in App state on save
+
+      // Exit process fields
+      endReason,
+      noticeDate,
+      lastWorkingDate,
+      exitProcessStatus,
+      accessAssetFormSentDate,
+      accessAssetFormCompletedDate,
+      assetReturnRequired,
+      assetReturnStatus,
+      accessClosureStatus,
+      exitClearanceFormSentDate,
+      exitClearanceCompletedDate,
+      exitInterviewFormSentDate,
+      exitInterviewStatus,
+      exitInterviewCompletedDate,
+      exitNotes,
+      closedDate,
+      ...(contractToEdit ? {
+        userReviewEmailSentDate: contractToEdit.userReviewEmailSentDate,
+        directorApprovalEmailSentDate: contractToEdit.directorApprovalEmailSentDate,
+        headHrReviewEmailSentDate: contractToEdit.headHrReviewEmailSentDate,
+        employeeContractEmailSentDate: contractToEdit.employeeContractEmailSentDate,
+        signedFollowUpEmailSentDate: contractToEdit.signedFollowUpEmailSentDate,
+        escalationEmailSentDate: contractToEdit.escalationEmailSentDate,
+        sourceProbationId: contractToEdit.sourceProbationId,
+        createdFrom: contractToEdit.createdFrom,
+        isSampleData: contractToEdit.isSampleData
+      } : {})
     };
 
     onSave(payload);
@@ -649,6 +809,331 @@ export const ContractForm: React.FC<ContractFormProps> = ({
               className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
             />
           </div>
+        </div>
+
+        {/* Section F: Exit Process & Clearance Flow (ARC 3.8) */}
+        <div className="border border-slate-200 rounded-xl overflow-hidden bg-slate-50/50" id="exit-process-section">
+          <button
+            type="button"
+            onClick={() => setIsExitSectionOpen(!isExitSectionOpen)}
+            className="w-full flex items-center justify-between px-5 py-4 bg-slate-100 hover:bg-slate-200/70 transition text-left cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-indigo-600" />
+              <div>
+                <h3 className="text-sm font-bold text-slate-800">
+                  F. Exit Process & Clearance Flow
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Track resignation, exit clearance status, assets, and private exit interview tracker.
+                </p>
+              </div>
+            </div>
+            {isExitSectionOpen ? (
+              <ChevronUp className="h-5 w-5 text-slate-500" />
+            ) : (
+              <ChevronDown className="h-5 w-5 text-slate-500" />
+            )}
+          </button>
+
+          {isExitSectionOpen && (
+            <div className="p-5 space-y-6 bg-white border-t border-slate-200" id="exit-process-body">
+              {/* Quick Actions Panel */}
+              <div className="p-4 bg-indigo-50/40 border border-indigo-100 rounded-lg">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-indigo-800 mb-2">
+                  Exit Process Quick Actions
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={handleMarkResigned}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-medium rounded-lg shadow-2xs transition cursor-pointer"
+                  >
+                    Mark Resigned
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMarkNotRenewed}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-medium rounded-lg shadow-2xs transition cursor-pointer"
+                  >
+                    Mark Not Renewed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleStartExitProcess}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer"
+                  >
+                    Start Exit Process
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMarkAccessAssetCompleted}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-medium rounded-lg shadow-2xs transition cursor-pointer"
+                  >
+                    Mark Access & Asset Completed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMarkExitClearanceCompleted}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-medium rounded-lg shadow-2xs transition cursor-pointer"
+                  >
+                    Mark Exit Clearance Completed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMarkExitInterviewCompleted}
+                    className="px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-xs font-medium rounded-lg shadow-2xs transition cursor-pointer"
+                  >
+                    Mark Exit Interview Completed
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleMarkClosed}
+                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg shadow-sm transition cursor-pointer"
+                  >
+                    Mark Closed
+                  </button>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    End Reason
+                  </label>
+                  <select
+                    value={endReason}
+                    onChange={(e) => setEndReason(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  >
+                    <option value="">-- Select Reason --</option>
+                    <option value="Resigned">Resigned</option>
+                    <option value="Not Renewed">Not Renewed</option>
+                    <option value="Failed Probation">Failed Probation</option>
+                    <option value="Employee Declined">Employee Declined</option>
+                    <option value="Mutual Agreement">Mutual Agreement</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Notice Date
+                  </label>
+                  <input
+                    type="date"
+                    value={noticeDate}
+                    onChange={(e) => setNoticeDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Last Working Date
+                  </label>
+                  <input
+                    type="date"
+                    value={lastWorkingDate}
+                    onChange={(e) => setLastWorkingDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Exit Process Status
+                  </label>
+                  <select
+                    value={exitProcessStatus}
+                    onChange={(e) => setExitProcessStatus(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none font-semibold text-indigo-700"
+                  >
+                    <option value="Not Started">Not Started</option>
+                    <option value="Waiting Last Working Date">Waiting Last Working Date</option>
+                    <option value="Access & Asset Form Pending">Access & Asset Form Pending</option>
+                    <option value="Access & Asset Form Completed">Access & Asset Form Completed</option>
+                    <option value="Exit Clearance Pending">Exit Clearance Pending</option>
+                    <option value="Exit Clearance Completed">Exit Clearance Completed</option>
+                    <option value="Exit Interview Pending">Exit Interview Pending</option>
+                    <option value="Exit Interview Completed">Exit Interview Completed</option>
+                    <option value="Closed">Closed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Access & Asset Form Sent Date
+                  </label>
+                  <input
+                    type="date"
+                    value={accessAssetFormSentDate}
+                    onChange={(e) => setAccessAssetFormSentDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Access & Asset Form Completed Date
+                  </label>
+                  <input
+                    type="date"
+                    value={accessAssetFormCompletedDate}
+                    onChange={(e) => setAccessAssetFormCompletedDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Asset Return Required
+                  </label>
+                  <select
+                    value={assetReturnRequired}
+                    onChange={(e) => setAssetReturnRequired(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  >
+                    <option value="Unknown">Unknown</option>
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Asset Return Status
+                  </label>
+                  <select
+                    value={assetReturnStatus}
+                    onChange={(e) => setAssetReturnStatus(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  >
+                    <option value="Not Started">Not Started</option>
+                    <option value="Not Required">Not Required</option>
+                    <option value="Pending">Pending</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Issue Found">Issue Found</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Access Closure Status
+                  </label>
+                  <select
+                    value={accessClosureStatus}
+                    onChange={(e) => setAccessClosureStatus(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  >
+                    <option value="Not Started">Not Started</option>
+                    <option value="Requested">Requested</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Exit Clearance Form Sent Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exitClearanceFormSentDate}
+                    onChange={(e) => setExitClearanceFormSentDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Exit Clearance Completed Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exitClearanceCompletedDate}
+                    onChange={(e) => setExitClearanceCompletedDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Exit Interview Form Sent Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exitInterviewFormSentDate}
+                    onChange={(e) => setExitInterviewFormSentDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Exit Interview Status
+                  </label>
+                  <select
+                    value={exitInterviewStatus}
+                    onChange={(e) => setExitInterviewStatus(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                  >
+                    <option value="Not Sent">Not Sent</option>
+                    <option value="Sent">Sent</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Employee Declined">Employee Declined</option>
+                    <option value="Not Required">Not Required</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Exit Interview Completed Date
+                  </label>
+                  <input
+                    type="date"
+                    value={exitInterviewCompletedDate}
+                    onChange={(e) => setExitInterviewCompletedDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Closed Date
+                  </label>
+                  <input
+                    type="date"
+                    value={closedDate}
+                    onChange={(e) => setClosedDate(e.target.value)}
+                    className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none bg-white"
+                  />
+                </div>
+              </div>
+
+              {/* Privacy Warning */}
+              <div className="bg-amber-50 border-l-4 border-amber-500 p-3.5 rounded-r-lg flex items-start gap-2.5">
+                <Info className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800">
+                  <strong>Privacy Notice:</strong> Exit Interview content is private. This system only tracks the form status, not the employee’s interview answers.
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Exit Process Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={exitNotes}
+                  placeholder="Record any general non-sensitive clearance comments..."
+                  onChange={(e) => setExitNotes(e.target.value)}
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-lg text-sm bg-white font-mono focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
