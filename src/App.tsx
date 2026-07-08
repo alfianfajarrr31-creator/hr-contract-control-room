@@ -17,6 +17,7 @@ import { ProbationForm } from "./components/ProbationForm";
 import { SettingsView } from "./components/SettingsView";
 import { ImportExcelView } from "./components/ImportExcelView";
 import { EmailCenterView } from "./components/EmailCenterView";
+import { ExitTrackerView } from "./components/ExitTrackerView";
 import { 
   LayoutDashboard, 
   FileText, 
@@ -31,13 +32,14 @@ import {
   Download,
   FileSpreadsheet,
   Mail,
-  Database
+  Database,
+  LogOut
 } from "lucide-react";
 
 export default function App() {
   // Navigation State
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "contracts" | "probation" | "settings" | "add-contract" | "edit-contract" | "add-probation" | "edit-probation" | "import-excel" | "email-center"
+    "dashboard" | "contracts" | "probation" | "settings" | "add-contract" | "edit-contract" | "add-probation" | "edit-probation" | "import-excel" | "email-center" | "exit-tracker"
   >("dashboard");
 
   // Core Data States
@@ -77,6 +79,7 @@ export default function App() {
   // Edit Item Holders
   const [editingContract, setEditingContract] = useState<ContractItem | null>(null);
   const [editingProbation, setEditingProbation] = useState<ProbationItem | null>(null);
+  const [navigationSearchTerm, setNavigationSearchTerm] = useState<string>("");
 
   // Initialize flag for production / sample data mode
   const [isInitialized, setIsInitialized] = useState<boolean>(() => {
@@ -797,6 +800,33 @@ export default function App() {
   const urgentContractsCount = contracts.filter(c => c.priority === "Critical" || c.priority === "Overdue").length;
   const urgentProbationsCount = probations.filter(p => p.priority === "Critical" || p.priority === "Overdue").length;
 
+  const isContractExit = (c: ContractItem) => {
+    return c.contractStatus === "Resigned" ||
+      c.contractStatus === "Not Renewed" ||
+      c.contractStatus === "Employee Declined" ||
+      c.contractStatus === "End Process" ||
+      c.contractStatus === "Exit Process" ||
+      c.contractStatus === "Closed" ||
+      (c.endReason !== undefined && c.endReason.trim() !== "") ||
+      (c.exitProcessStatus !== undefined && c.exitProcessStatus.trim() !== "" && c.exitProcessStatus !== "Not Started");
+  };
+
+  const isProbationExit = (p: ProbationItem) => {
+    return p.probationStatus === "Resigned" ||
+      p.probationStatus === "Not Continued" ||
+      p.probationStatus === "Failed Probation" ||
+      p.probationStatus === "End Process" ||
+      p.probationStatus === "Exit Process" ||
+      p.probationStatus === "Closed" ||
+      (p.endReason !== undefined && p.endReason.trim() !== "") ||
+      (p.exitProcessStatus !== undefined && p.exitProcessStatus.trim() !== "" && p.exitProcessStatus !== "Not Started");
+  };
+
+  const activeExitCount = [
+    ...contracts.filter(isContractExit),
+    ...probations.filter(isProbationExit)
+  ].filter(row => row.exitProcessStatus !== "Closed" && row.closedDate === undefined).length;
+
   return (
     <div className="min-h-screen bg-slate-50 flex" id="app-layout">
       
@@ -870,6 +900,26 @@ export default function App() {
               {urgentProbationsCount > 0 && (
                 <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500 text-white font-mono">
                   {urgentProbationsCount}
+                </span>
+              )}
+            </button>
+
+            <button
+              id="sidebar-tab-exit-tracker"
+              onClick={() => setActiveTab("exit-tracker")}
+              className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium transition cursor-pointer ${
+                activeTab === "exit-tracker"
+                  ? "bg-slate-800 text-white font-semibold border-l-4 border-l-rose-500"
+                  : "hover:bg-slate-800 text-slate-400 hover:text-slate-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <LogOut className="h-4.5 w-4.5 text-rose-400" />
+                Exit Tracker
+              </div>
+              {activeExitCount > 0 && (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white font-mono">
+                  {activeExitCount}
                 </span>
               )}
             </button>
@@ -1091,6 +1141,12 @@ export default function App() {
               onDeleteContract={handleDeleteContract}
               onExportCSV={handleExportContracts}
               onUpdateContract={handleUpdateContractInline}
+              onViewExitProcess={(employeeName) => {
+                setNavigationSearchTerm(employeeName);
+                setActiveTab("exit-tracker");
+              }}
+              initialSearchTerm={navigationSearchTerm}
+              onClearInitialSearch={() => setNavigationSearchTerm("")}
             />
           )}
 
@@ -1113,6 +1169,12 @@ export default function App() {
               onExportCSV={handleExportProbations}
               onConvertProbationToContract={handleConvertProbationToContract}
               onUpdateProbation={handleUpdateProbationInline}
+              onViewExitProcess={(employeeName) => {
+                setNavigationSearchTerm(employeeName);
+                setActiveTab("exit-tracker");
+              }}
+              initialSearchTerm={navigationSearchTerm}
+              onClearInitialSearch={() => setNavigationSearchTerm("")}
             />
           )}
 
@@ -1208,6 +1270,26 @@ export default function App() {
               accessAssetFormLink={accessAssetFormLink}
               exitClearanceFormLink={exitClearanceFormLink}
               exitInterviewFormLink={exitInterviewFormLink}
+            />
+          )}
+
+          {activeTab === "exit-tracker" && (
+            <ExitTrackerView
+              contracts={contracts}
+              probations={probations}
+              simulationDate={simulationDate}
+              onUpdateContract={handleUpdateContractInline}
+              onUpdateProbation={handleUpdateProbationInline}
+              onNavigateToSource={(sourceType, employeeName) => {
+                setNavigationSearchTerm(employeeName);
+                if (sourceType === "Contract") {
+                  setActiveTab("contracts");
+                } else {
+                  setActiveTab("probation");
+                }
+              }}
+              initialSearchTerm={navigationSearchTerm}
+              onClearInitialSearch={() => setNavigationSearchTerm("")}
             />
           )}
           </>

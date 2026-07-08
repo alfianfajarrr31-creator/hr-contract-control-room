@@ -38,6 +38,9 @@ interface ContractTrackerViewProps {
   onDeleteContract: (id: string) => void;
   onExportCSV: (items: ContractItem[]) => void;
   onUpdateContract?: (contract: ContractItem) => void;
+  onViewExitProcess?: (employeeName: string) => void;
+  initialSearchTerm?: string;
+  onClearInitialSearch?: () => void;
 }
 
 export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
@@ -49,10 +52,22 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
   onEditContract,
   onDeleteContract,
   onExportCSV,
-  onUpdateContract
+  onUpdateContract,
+  onViewExitProcess,
+  initialSearchTerm,
+  onClearInitialSearch
 }) => {
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
+  const [hideExitRecords, setHideExitRecords] = useState(true);
+
+  React.useEffect(() => {
+    if (initialSearchTerm) {
+      setSearchTerm(initialSearchTerm);
+      onClearInitialSearch?.();
+    }
+  }, [initialSearchTerm, onClearInitialSearch]);
+
   const [selectedDept, setSelectedDept] = useState("All Departments");
   const [selectedManager, setSelectedManager] = useState("All Direct Managers");
   const [selectedStatus, setSelectedStatus] = useState("All Statuses");
@@ -70,6 +85,19 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const isExitRecord = (c: ContractItem) => {
+    return (
+      c.contractStatus === "Resigned" ||
+      c.contractStatus === "Not Renewed" ||
+      c.contractStatus === "Employee Declined" ||
+      c.contractStatus === "End Process" ||
+      c.contractStatus === "Exit Process" ||
+      c.contractStatus === "Closed" ||
+      (c.endReason !== undefined && c.endReason.trim() !== "") ||
+      (c.exitProcessStatus !== undefined && c.exitProcessStatus.trim() !== "" && c.exitProcessStatus !== "Not Started")
+    );
+  };
+
   // Filter & Sort Logic
   const filteredContracts = contracts.filter(c => {
     const matchesSearch = c.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -81,8 +109,9 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
     const matchesStatus = selectedStatus === "All Statuses" || c.contractStatus === selectedStatus;
     const matchesPriority = selectedPriority === "All Priorities" || c.priority === selectedPriority;
     const matchesPIC = selectedPIC === "All HR PICs" || c.hrPic === selectedPIC;
+    const matchesExitHide = !hideExitRecords || !isExitRecord(c);
 
-    return matchesSearch && matchesDept && matchesManager && matchesStatus && matchesPriority && matchesPIC;
+    return matchesSearch && matchesDept && matchesManager && matchesStatus && matchesPriority && matchesPIC && matchesExitHide;
   }).sort((a, b) => {
     const dateA = new Date(a.contractEndDate).getTime();
     const dateB = new Date(b.contractEndDate).getTime();
@@ -96,6 +125,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
     setSelectedStatus("All Statuses");
     setSelectedPriority("All Priorities");
     setSelectedPIC("All HR PICs");
+    setHideExitRecords(true);
   };
 
   // Helper formatting for currency
@@ -205,7 +235,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
           {/* Search bar */}
           <div className="relative">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Search</label>
@@ -292,6 +322,19 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
               ))}
             </select>
           </div>
+
+          {/* Exit Process Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Exit Process Filter</label>
+            <select
+              value={hideExitRecords ? "true" : "false"}
+              onChange={(e) => setHideExitRecords(e.target.value === "true")}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition outline-none"
+            >
+              <option value="true">Hide Exit Processes</option>
+              <option value="false">Show All (Inc. Exits)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -353,7 +396,12 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                           {c.employeeId}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">
-                          {c.employeeName}
+                          <div>{c.employeeName}</div>
+                          {isExitRecord(c) && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-100 font-mono">
+                              In Exit Tracker
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="font-semibold text-slate-700">{c.department}</div>
@@ -395,6 +443,15 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {isExitRecord(c) && onViewExitProcess && (
+                              <button
+                                onClick={() => onViewExitProcess(c.employeeName)}
+                                className="px-2.5 py-1 text-[10px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded border border-rose-200 transition cursor-pointer"
+                                title="View Exit Process"
+                              >
+                                View Exit Process
+                              </button>
+                            )}
                             <button
                               onClick={() => onEditContract(c)}
                               className="p-1 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded transition cursor-pointer"

@@ -43,6 +43,9 @@ interface ProbationTrackerViewProps {
   onExportCSV: (items: ProbationItem[]) => void;
   onConvertProbationToContract: (newContract: ContractItem, updatedProbation: ProbationItem) => void;
   onUpdateProbation?: (probation: ProbationItem) => void;
+  onViewExitProcess?: (employeeName: string) => void;
+  initialSearchTerm?: string;
+  onClearInitialSearch?: () => void;
 }
 
 export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
@@ -56,10 +59,21 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   onDeleteProbation,
   onExportCSV,
   onConvertProbationToContract,
-  onUpdateProbation
+  onUpdateProbation,
+  onViewExitProcess,
+  initialSearchTerm,
+  onClearInitialSearch
 }) => {
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
+  const [hideExitRecords, setHideExitRecords] = useState(true);
+
+  useEffect(() => {
+    if (initialSearchTerm) {
+      setSearchTerm(initialSearchTerm);
+      onClearInitialSearch?.();
+    }
+  }, [initialSearchTerm, onClearInitialSearch]);
 
   // Conversion state (ARC 3.3)
   const [conversionProbation, setConversionProbation] = useState<ProbationItem | null>(null);
@@ -281,6 +295,19 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const isExitRecord = (p: ProbationItem) => {
+    return (
+      p.probationStatus === "Resigned" ||
+      p.probationStatus === "Not Continued" ||
+      p.probationStatus === "Failed Probation" ||
+      p.probationStatus === "End Process" ||
+      p.probationStatus === "Exit Process" ||
+      p.probationStatus === "Closed" ||
+      (p.endReason !== undefined && p.endReason.trim() !== "") ||
+      (p.exitProcessStatus !== undefined && p.exitProcessStatus.trim() !== "" && p.exitProcessStatus !== "Not Started")
+    );
+  };
+
   // Filter & Sort
   const filteredProbations = probations.filter(p => {
     const matchesSearch = p.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -292,8 +319,9 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
     const matchesStatus = selectedStatus === "All Statuses" || p.probationStatus === selectedStatus;
     const matchesPriority = selectedPriority === "All Priorities" || p.priority === selectedPriority;
     const matchesPIC = selectedPIC === "All HR PICs" || p.hrPic === selectedPIC;
+    const matchesExitHide = !hideExitRecords || !isExitRecord(p);
 
-    return matchesSearch && matchesDept && matchesManager && matchesStatus && matchesPriority && matchesPIC;
+    return matchesSearch && matchesDept && matchesManager && matchesStatus && matchesPriority && matchesPIC && matchesExitHide;
   }).sort((a, b) => {
     const dateA = new Date(a.probationEndDate).getTime();
     const dateB = new Date(b.probationEndDate).getTime();
@@ -307,6 +335,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
     setSelectedStatus("All Statuses");
     setSelectedPriority("All Priorities");
     setSelectedPIC("All HR PICs");
+    setHideExitRecords(true);
   };
 
   // Badge helpers
@@ -407,7 +436,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
           )}
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3">
           {/* Search bar */}
           <div className="relative">
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Search</label>
@@ -494,6 +523,19 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
               ))}
             </select>
           </div>
+
+          {/* Exit Process Filter */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5 font-mono">Exit Process Filter</label>
+            <select
+              value={hideExitRecords ? "true" : "false"}
+              onChange={(e) => setHideExitRecords(e.target.value === "true")}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition outline-none animate-fade-in"
+            >
+              <option value="true">Hide Exit Processes</option>
+              <option value="false">Show All (Inc. Exits)</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -555,7 +597,12 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                           {p.employeeId}
                         </td>
                         <td className="px-6 py-4 font-medium text-slate-900">
-                          {p.employeeName}
+                          <div>{p.employeeName}</div>
+                          {isExitRecord(p) && (
+                            <span className="inline-flex items-center gap-1 mt-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-rose-50 text-rose-700 border border-rose-100 font-mono">
+                              In Exit Tracker
+                            </span>
+                          )}
                         </td>
                         <td className="px-6 py-4">
                           <div className="font-semibold text-slate-700">{p.department}</div>
@@ -596,6 +643,15 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end gap-2">
+                            {isExitRecord(p) && onViewExitProcess && (
+                              <button
+                                onClick={() => onViewExitProcess(p.employeeName)}
+                                className="px-2.5 py-1 text-[10px] font-bold bg-rose-50 text-rose-700 hover:bg-rose-100 rounded border border-rose-200 transition cursor-pointer"
+                                title="View Exit Process"
+                              >
+                                View Exit Process
+                              </button>
+                            )}
                             <button
                               onClick={() => onEditProbation(p)}
                               className="p-1 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded transition cursor-pointer"
