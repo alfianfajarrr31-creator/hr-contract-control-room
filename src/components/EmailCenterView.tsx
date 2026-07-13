@@ -25,8 +25,12 @@ import {
   CheckSquare, 
   Square,
   AlertCircle,
-  Calendar
+  Calendar,
+  Search,
+  Filter,
+  X
 } from "lucide-react";
+import { computeExitPriority, ExitTrackerRow } from "./ExitTrackerView";
 
 interface EmailCenterViewProps {
   contracts: ContractItem[];
@@ -54,7 +58,7 @@ export function EmailCenterView({
   
   // 2. Data Source State
   // Some templates support both sources, others are source-specific
-  const [dataSource, setDataSource] = useState<"contract" | "probation">("contract");
+  const [dataSource, setDataSource] = useState<"contract" | "probation" | "exit">("contract");
 
   // 3. Selection State
   const [selectedContractIds, setSelectedContractIds] = useState<string[]>([]);
@@ -63,8 +67,17 @@ export function EmailCenterView({
   // 4. Toast / Copy Feedback State
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // 5. Toggle State
+  const [showRelevantOnly, setShowRelevantOnly] = useState<boolean>(true);
+
+  // 6. Search & Filters State
+  const [searchName, setSearchName] = useState<string>("");
+  const [selectedDept, setSelectedDept] = useState<string>("");
+  const [selectedHrPic, setSelectedHrPic] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+
   // Template config for UI
-  const templates: { key: EmailTemplateType; label: string; description: string; allowedSources: ("contract" | "probation")[] }[] = [
+  const templates: { key: EmailTemplateType; label: string; description: string; allowedSources: ("contract" | "probation" | "exit")[] }[] = [
     { 
       key: "user-review", 
       label: "User Review Request", 
@@ -117,13 +130,13 @@ export function EmailCenterView({
       key: "exit-documents-request", 
       label: "Exit: Documents & Forms Request (All Forms)", 
       description: "Send single email containing Access & Asset, Clearance, and Exit Interview forms altogether", 
-      allowedSources: ["contract", "probation"] 
+      allowedSources: ["contract", "probation", "exit"] 
     },
     { 
       key: "exit-follow-up", 
       label: "Exit: Pending Forms Follow Up", 
       description: "Follow up with offboarding employees who have pending/incomplete forms", 
-      allowedSources: ["contract", "probation"] 
+      allowedSources: ["contract", "probation", "exit"] 
     },
   ];
 
@@ -146,15 +159,198 @@ export function EmailCenterView({
     setSelectedProbationIds([]);
   }, [dataSource]);
 
-  // Extract relevant records
+  // Synchronize selections with current contracts and probations props (prevent stale IDs)
+  useEffect(() => {
+    setSelectedContractIds(prev => prev.filter(id => contracts.some(c => c.id === id)));
+  }, [contracts]);
+
+  useEffect(() => {
+    setSelectedProbationIds(prev => prev.filter(id => probations.some(p => p.id === id)));
+  }, [probations]);
+
+  // Helper to derive Exit records from contracts and probations
+  const deriveExitRecords = (contractsList: ContractItem[], probationsList: ProbationItem[]): ExitTrackerRow[] => {
+    const rows: ExitTrackerRow[] = [];
+
+    contractsList.forEach(c => {
+      const isExit = 
+        c.contractStatus === "Resigned" ||
+        c.contractStatus === "Not Renewed" ||
+        c.contractStatus === "Employee Declined" ||
+        c.contractStatus === "End Process" ||
+        c.contractStatus === "Exit Process" ||
+        c.contractStatus === "Closed" ||
+        (c.endReason && c.endReason.trim() !== "") ||
+        (c.exitProcessStatus && c.exitProcessStatus.trim() !== "" && c.exitProcessStatus !== "Not Started");
+
+      if (isExit) {
+        const priority = computeExitPriority(c, simulationDate);
+        rows.push({
+          id: c.id,
+          sourceType: "Contract",
+          employeeId: c.employeeId || "",
+          employeeName: c.employeeName || "",
+          position: c.position || "",
+          department: c.department || "",
+          directManager: c.directManager || "",
+          hrPic: c.hrPic || "",
+          endReason: c.endReason || "Not Specified",
+          noticeDate: c.noticeDate,
+          lastWorkingDate: c.lastWorkingDate || "",
+          exitDocumentsSentDate: c.exitDocumentsSentDate,
+          exitDocumentsReturnDeadline: c.exitDocumentsReturnDeadline,
+          exitProcessStatus: c.exitProcessStatus || "Not Started",
+          accessAssetFormStatus: c.accessAssetFormStatus || "Not Started",
+          accessAssetFormCompletedDate: c.accessAssetFormCompletedDate,
+          exitClearanceFormStatus: c.exitClearanceFormStatus || "Not Started",
+          exitClearanceCompletedDate: c.exitClearanceCompletedDate,
+          exitInterviewFormStatus: c.exitInterviewFormStatus || "Not Started",
+          exitInterviewCompletedDate: c.exitInterviewCompletedDate,
+          closedDate: c.closedDate,
+          exitNotes: c.exitNotes,
+          priority,
+          originalRecord: c
+        });
+      }
+    });
+
+    probationsList.forEach(p => {
+      const isExit = 
+        p.probationStatus === "Resigned" ||
+        p.probationStatus === "Not Continued" ||
+        p.probationStatus === "Failed Probation" ||
+        p.probationStatus === "End Process" ||
+        p.probationStatus === "Exit Process" ||
+        p.probationStatus === "Closed" ||
+        (p.endReason && p.endReason.trim() !== "") ||
+        (p.exitProcessStatus && p.exitProcessStatus.trim() !== "" && p.exitProcessStatus !== "Not Started");
+
+      if (isExit) {
+        const priority = computeExitPriority(p, simulationDate);
+        rows.push({
+          id: p.id,
+          sourceType: "Probation",
+          employeeId: p.employeeId || "",
+          employeeName: p.employeeName || "",
+          position: p.position || "",
+          department: p.department || "",
+          directManager: p.directManager || "",
+          hrPic: p.hrPic || "",
+          endReason: p.endReason || "Not Specified",
+          noticeDate: p.noticeDate,
+          lastWorkingDate: p.lastWorkingDate || "",
+          exitDocumentsSentDate: p.exitDocumentsSentDate,
+          exitDocumentsReturnDeadline: p.exitDocumentsReturnDeadline,
+          exitProcessStatus: p.exitProcessStatus || "Not Started",
+          accessAssetFormStatus: p.accessAssetFormStatus || "Not Started",
+          accessAssetFormCompletedDate: p.accessAssetFormCompletedDate,
+          exitClearanceFormStatus: p.exitClearanceFormStatus || "Not Started",
+          exitClearanceCompletedDate: p.exitClearanceCompletedDate,
+          exitInterviewFormStatus: p.exitInterviewFormStatus || "Not Started",
+          exitInterviewCompletedDate: p.exitInterviewCompletedDate,
+          closedDate: p.closedDate,
+          exitNotes: p.exitNotes,
+          priority,
+          originalRecord: p
+        });
+      }
+    });
+
+    return rows;
+  };
+
+  // 1. Get filtered or full lists from utils/emailHelper
   const relevantRecords = getRelevantRecordsForEmailType(selectedTemplate, contracts, probations);
-  
-  // Records of the chosen source
-  const currentSourceRecords = dataSource === "contract" ? relevantRecords.contracts : relevantRecords.probations;
+
+  const getBaseRecords = () => {
+    if (showRelevantOnly) {
+      if (dataSource === "contract") {
+        return relevantRecords.contracts;
+      } else if (dataSource === "probation") {
+        return relevantRecords.probations;
+      } else { // "exit"
+        return deriveExitRecords(relevantRecords.contracts, relevantRecords.probations);
+      }
+    } else {
+      if (dataSource === "contract") {
+        return contracts;
+      } else if (dataSource === "probation") {
+        return probations;
+      } else { // "exit"
+        return deriveExitRecords(contracts, probations);
+      }
+    }
+  };
+
+  const baseRecords = getBaseRecords();
+
+  // Dynamic unique filter options
+  const uniqueDepts = Array.from(new Set([
+    ...contracts.map(c => c.department),
+    ...probations.map(p => p.department)
+  ].filter(Boolean))).sort();
+
+  const uniquePics = Array.from(new Set([
+    ...contracts.map(c => c.hrPic),
+    ...probations.map(p => p.hrPic)
+  ].filter(Boolean))).sort();
+
+  const uniqueStatuses = Array.from(new Set(
+    (dataSource === "contract" 
+      ? contracts.map(c => c.contractStatus) 
+      : dataSource === "probation" 
+        ? probations.map(p => p.probationStatus) 
+        : deriveExitRecords(contracts, probations).map(e => e.exitProcessStatus)
+    ).filter(Boolean)
+  )).sort();
+
+  // Apply search & filters
+  const filteredRecords = baseRecords.filter(item => {
+    // 1. Name search
+    if (searchName && !item.employeeName.toLowerCase().includes(searchName.toLowerCase())) {
+      return false;
+    }
+    // 2. Department filter
+    if (selectedDept && item.department !== selectedDept) {
+      return false;
+    }
+    // 3. HR PIC filter
+    if (selectedHrPic && item.hrPic !== selectedHrPic) {
+      return false;
+    }
+    // 4. Status filter
+    if (selectedStatus) {
+      const statusValue = dataSource === "contract"
+        ? (item as ContractItem).contractStatus
+        : dataSource === "probation"
+          ? (item as ProbationItem).probationStatus
+          : (item as ExitTrackerRow).exitProcessStatus;
+      if (statusValue !== selectedStatus) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  const currentSourceRecords = filteredRecords;
+
+  // Derived state to check if all currentSourceRecords are selected
+  const allSelected = currentSourceRecords.length > 0 && currentSourceRecords.every(item => {
+    if (dataSource === "exit") {
+      const row = item as any;
+      return row.sourceType === "Contract"
+        ? selectedContractIds.includes(row.id)
+        : selectedProbationIds.includes(row.id);
+    } else if (dataSource === "contract") {
+      return selectedContractIds.includes(item.id);
+    } else {
+      return selectedProbationIds.includes(item.id);
+    }
+  });
 
   // Handle Multi-selection Checkbox change
-  const handleToggleRecord = (id: string) => {
-    if (dataSource === "contract") {
+  const handleToggleRecord = (id: string, type: "Contract" | "Probation") => {
+    if (type === "Contract") {
       setSelectedContractIds(prev => 
         prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
       );
@@ -166,17 +362,40 @@ export function EmailCenterView({
   };
 
   const handleToggleSelectAll = () => {
-    if (dataSource === "contract") {
-      if (selectedContractIds.length === currentSourceRecords.length) {
-        setSelectedContractIds([]);
+    if (dataSource === "exit") {
+      const shownIdsAndTypes = currentSourceRecords.map(item => ({ id: item.id, sourceType: (item as ExitTrackerRow).sourceType }));
+      const allSelected = shownIdsAndTypes.length > 0 && shownIdsAndTypes.every(item => 
+        item.sourceType === "Contract" 
+          ? selectedContractIds.includes(item.id) 
+          : selectedProbationIds.includes(item.id)
+      );
+
+      if (allSelected) {
+        const shownContractIds = shownIdsAndTypes.filter(i => i.sourceType === "Contract").map(i => i.id);
+        const shownProbationIds = shownIdsAndTypes.filter(i => i.sourceType === "Probation").map(i => i.id);
+        setSelectedContractIds(prev => prev.filter(id => !shownContractIds.includes(id)));
+        setSelectedProbationIds(prev => prev.filter(id => !shownProbationIds.includes(id)));
       } else {
-        setSelectedContractIds(currentSourceRecords.map(c => c.id));
+        const shownContractIds = shownIdsAndTypes.filter(i => i.sourceType === "Contract").map(i => i.id);
+        const shownProbationIds = shownIdsAndTypes.filter(i => i.sourceType === "Probation").map(i => i.id);
+        setSelectedContractIds(prev => Array.from(new Set([...prev, ...shownContractIds])));
+        setSelectedProbationIds(prev => Array.from(new Set([...prev, ...shownProbationIds])));
+      }
+    } else if (dataSource === "contract") {
+      const shownIds = currentSourceRecords.map(c => c.id);
+      const allSelected = shownIds.length > 0 && shownIds.every(id => selectedContractIds.includes(id));
+      if (allSelected) {
+        setSelectedContractIds(prev => prev.filter(id => !shownIds.includes(id)));
+      } else {
+        setSelectedContractIds(prev => Array.from(new Set([...prev, ...shownIds])));
       }
     } else {
-      if (selectedProbationIds.length === currentSourceRecords.length) {
-        setSelectedProbationIds([]);
+      const shownIds = currentSourceRecords.map(p => p.id);
+      const allSelected = shownIds.length > 0 && shownIds.every(id => selectedProbationIds.includes(id));
+      if (allSelected) {
+        setSelectedProbationIds(prev => prev.filter(id => !shownIds.includes(id)));
       } else {
-        setSelectedProbationIds(currentSourceRecords.map(p => p.id));
+        setSelectedProbationIds(prev => Array.from(new Set([...prev, ...shownIds])));
       }
     }
   };
@@ -194,16 +413,44 @@ export function EmailCenterView({
 
   // Recipient and CC logic
   const getRecipientsSuggestion = (): string => {
-    if (dataSource === "contract") {
-      if (selectedContractsList.length === 0) return "[Select contracts to see recipients]";
-      if (selectedTemplate === "contract-sent" || selectedTemplate === "signed-followup") {
-        return selectedContractsList.map(c => `${c.employeeName} <${c.employeeId.toLowerCase()}@javamifi.com>`).join("; ");
-      }
-      return Array.from(new Set(selectedContractsList.map(c => c.directManager))).map(m => `${m} <manager@javamifi.com>`).join("; ");
+    const emails: string[] = [];
+    
+    const isEmployeeDirectTemplate = 
+      selectedTemplate === "contract-sent" || 
+      selectedTemplate === "signed-followup" || 
+      selectedTemplate === "exit-documents-request" || 
+      selectedTemplate === "exit-follow-up";
+
+    if (isEmployeeDirectTemplate) {
+      selectedContractsList.forEach(c => {
+        if (c.employeeName && c.employeeId) {
+          emails.push(`${c.employeeName} <${c.employeeId.toLowerCase()}@javamifi.com>`);
+        }
+      });
+      selectedProbationsList.forEach(p => {
+        if (p.employeeName && p.employeeId) {
+          emails.push(`${p.employeeName} <${p.employeeId.toLowerCase()}@javamifi.com>`);
+        }
+      });
     } else {
-      if (selectedProbationsList.length === 0) return "[Select probations to see recipients]";
-      return Array.from(new Set(selectedProbationsList.map(p => p.directManager))).map(m => `${m} <manager@javamifi.com>`).join("; ");
+      const managers = new Set<string>();
+      selectedContractsList.forEach(c => {
+        if (c.directManager) managers.add(c.directManager);
+      });
+      selectedProbationsList.forEach(p => {
+        if (p.directManager) managers.add(p.directManager);
+      });
+      managers.forEach(m => {
+        emails.push(`${m} <manager@javamifi.com>`);
+      });
     }
+
+    if (emails.length === 0) {
+      return dataSource === "exit" 
+        ? "[Select exit records to see recipients]" 
+        : (dataSource === "contract" ? "[Select contracts to see recipients]" : "[Select probations to see recipients]");
+    }
+    return emails.join("; ");
   };
 
   const getCcSuggestion = (): string => {
@@ -223,10 +470,19 @@ export function EmailCenterView({
     getFormattedMonthYear()
   );
 
+  const getActiveBodySource = (): "contract" | "probation" | "both" => {
+    if (dataSource === "exit") {
+      if (selectedContractsList.length > 0 && selectedProbationsList.length > 0) return "both";
+      if (selectedContractsList.length > 0) return "contract";
+      return "probation";
+    }
+    return dataSource;
+  };
+
   const body = generateEmailBody(
     selectedTemplate,
     { contracts: selectedContractsList, probations: selectedProbationsList },
-    dataSource,
+    getActiveBodySource(),
     getFormattedMonthYear(),
     {
       accessAsset: accessAssetFormLink,
@@ -259,9 +515,24 @@ export function EmailCenterView({
     showToast("Full Email drafted text copied to clipboard!");
   };
 
+  const hasSelectedRecords =
+    dataSource === "exit"
+      ? selectedContractIds.length + selectedProbationIds.length > 0
+      : dataSource === "contract"
+        ? selectedContractIds.length > 0
+        : selectedProbationIds.length > 0;
+
+  const isDraftEmpty = !hasSelectedRecords;
+
   // Mark as Email Sent handler
   const handleMarkAsSent = () => {
-    const isConfirmed = confirm(`Mark ${dataSource === "contract" ? selectedContractIds.length : selectedProbationIds.length} records as email sent for template "${templates.find(t => t.key === selectedTemplate)?.label}"?`);
+    const totalSelected = dataSource === "exit"
+      ? (selectedContractsList.length + selectedProbationsList.length)
+      : (dataSource === "contract" ? selectedContractIds.length : selectedProbationIds.length);
+
+    if (totalSelected === 0) return;
+
+    const isConfirmed = confirm(`Mark ${totalSelected} records as email sent for template "${templates.find(t => t.key === selectedTemplate)?.label}"?`);
     if (!isConfirmed) return;
 
     const { contracts: updatedC, probations: updatedP } = markEmailSent(
@@ -299,7 +570,7 @@ export function EmailCenterView({
   // Render status badge helper
   const renderStatusBadge = (status: string) => {
     return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+      <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[11px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-100 font-sans">
         {status}
       </span>
     );
@@ -307,31 +578,36 @@ export function EmailCenterView({
 
   // Helper to retrieve last email sent date for active template
   const getLastSentDate = (item: any): string | undefined => {
+    const isExitSource = dataSource === "exit";
+    const targetItem = isExitSource ? item.originalRecord : item;
+    const targetSource = isExitSource ? (item.sourceType === "Contract" ? "contract" : "probation") : dataSource;
+
     switch (selectedTemplate) {
       case "user-review":
-        return dataSource === "contract" ? item.userReviewEmailSentDate : item.probationReviewEmailSentDate;
+        return targetSource === "contract" ? targetItem.userReviewEmailSentDate : targetItem.probationReviewEmailSentDate;
       case "director-approval":
-        return dataSource === "contract" ? item.directorApprovalEmailSentDate : item.probationApprovalEmailSentDate;
+        return targetSource === "contract" ? targetItem.directorApprovalEmailSentDate : targetItem.probationApprovalEmailSentDate;
       case "head-hr-review":
-        return item.headHrReviewEmailSentDate;
+        return targetItem.headHrReviewEmailSentDate;
       case "contract-sent":
-        return item.employeeContractEmailSentDate;
+        return targetItem.employeeContractEmailSentDate;
       case "signed-followup":
-        return item.signedFollowUpEmailSentDate;
+        return targetItem.signedFollowUpEmailSentDate;
       case "escalation":
-        return item.escalationEmailSentDate;
+        return targetItem.escalationEmailSentDate;
       case "probation-request":
-        return item.probationReviewEmailSentDate;
+        return targetItem.probationReviewEmailSentDate;
       case "probation-approval":
-        return item.probationApprovalEmailSentDate;
+        return targetItem.probationApprovalEmailSentDate;
       case "exit-documents-request":
-        return item.exitDocumentsSentDate;
+        return targetItem.exitDocumentsSentDate;
       case "exit-follow-up":
         return undefined; // Follow-up logs can be tracked via exitNotes or handled manually
       default:
         return undefined;
     }
   };
+
 
   return (
     <div className="space-y-6" id="email-center-view">
@@ -408,40 +684,146 @@ export function EmailCenterView({
                 <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider">2. Filter Records & Multi-Select Candidates</h2>
               </div>
 
-              {/* Source Switcher - Only visible if current template allows both */}
-              {templates.find(t => t.key === selectedTemplate)?.allowedSources.length === 2 && (
+              {/* Source Switcher - Only visible if current template allows multiple sources */}
+              {(templates.find(t => t.key === selectedTemplate)?.allowedSources.length || 0) > 1 && (
                 <div className="flex bg-slate-200 p-0.5 rounded-lg border border-slate-300">
-                  <button
-                    onClick={() => setDataSource("contract")}
-                    className={`px-3 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
-                      dataSource === "contract"
-                        ? "bg-white text-indigo-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-800"
-                    }`}
-                  >
-                    Contract Data
-                  </button>
-                  <button
-                    onClick={() => setDataSource("probation")}
-                    className={`px-3 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
-                      dataSource === "probation"
-                        ? "bg-white text-emerald-700 shadow-sm"
-                        : "text-slate-600 hover:text-slate-800"
-                    }`}
-                  >
-                    Probation Data
-                  </button>
+                  {templates.find(t => t.key === selectedTemplate)?.allowedSources.map(source => {
+                    const isSelected = dataSource === source;
+                    const label = source === "contract" ? "Contract Data" : source === "probation" ? "Probation Data" : "Exit Tracker";
+                    return (
+                      <button
+                        key={source}
+                        onClick={() => setDataSource(source)}
+                        className={`px-3 py-1 text-xs font-semibold rounded-md transition cursor-pointer ${
+                          isSelected
+                            ? source === "contract" 
+                              ? "bg-white text-indigo-700 shadow-sm"
+                              : source === "probation"
+                                ? "bg-white text-emerald-700 shadow-sm"
+                                : "bg-white text-rose-700 shadow-sm"
+                            : "text-slate-600 hover:text-slate-800"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
+            </div>
+
+            {/* Custom Control Panel: Toggle and Search/Filters */}
+            <div className="p-4 bg-slate-50/50 border-b border-slate-200 space-y-4">
+              {/* Toggle section */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-700">Show Relevant Records Only</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowRelevantOnly(!showRelevantOnly);
+                        // Reset selection when toggling
+                        setSelectedContractIds([]);
+                        setSelectedProbationIds([]);
+                      }}
+                      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        showRelevantOnly ? "bg-indigo-600" : "bg-slate-300"
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                          showRelevantOnly ? "translate-x-4" : "translate-x-0"
+                        }`}
+                      />
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-normal">
+                    Relevant mode filters records based on the selected email template. Turn it off to select records manually.
+                  </p>
+                </div>
+                <div className="text-xs font-semibold text-slate-500 shrink-0 font-mono bg-slate-100/80 px-2.5 py-1 rounded border border-slate-200 self-start sm:self-auto">
+                  Showing <span className="text-indigo-600 font-bold">{currentSourceRecords.length}</span> of <span className="font-bold">{baseRecords.length}</span> records
+                </div>
+              </div>
+
+              {/* Search & Filters Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 pt-2 border-t border-slate-200/60">
+                {/* Search Term */}
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                    <Search className="h-3.5 w-3.5" />
+                  </span>
+                  <input
+                    type="text"
+                    value={searchName}
+                    onChange={(e) => setSearchName(e.target.value)}
+                    placeholder="Search name..."
+                    className="w-full pl-8 pr-7 py-1.5 bg-white border border-slate-200 rounded-lg text-xs placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 font-sans transition"
+                  />
+                  {searchName && (
+                    <button
+                      onClick={() => setSearchName("")}
+                      className="absolute inset-y-0 right-0 pr-2 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Dept Filter */}
+                <div>
+                  <select
+                    value={selectedDept}
+                    onChange={(e) => setSelectedDept(e.target.value)}
+                    className="w-full py-1.5 px-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 transition"
+                  >
+                    <option value="">All Departments</option>
+                    {uniqueDepts.map(dept => (
+                      <option key={dept} value={dept}>{dept}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* HR PIC Filter */}
+                <div>
+                  <select
+                    value={selectedHrPic}
+                    onChange={(e) => setSelectedHrPic(e.target.value)}
+                    className="w-full py-1.5 px-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 transition"
+                  >
+                    <option value="">All HR PICs</option>
+                    {uniquePics.map(pic => (
+                      <option key={pic} value={pic}>{pic}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Status Filter */}
+                <div>
+                  <select
+                    value={selectedStatus}
+                    onChange={(e) => setSelectedStatus(e.target.value)}
+                    className="w-full py-1.5 px-2 bg-white border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-indigo-500 text-slate-700 transition"
+                  >
+                    <option value="">All Statuses</option>
+                    {uniqueStatuses.map(status => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* List Table container */}
             <div className="p-0">
               {currentSourceRecords.length === 0 ? (
-                <div className="p-8 text-center space-y-2">
-                  <AlertCircle className="h-8 w-8 text-slate-300 mx-auto" />
-                  <p className="text-xs font-bold text-slate-600">No matching target records</p>
-                  <p className="text-[11px] text-slate-400">All currently registered {dataSource} items are outside the target list rules for this template.</p>
+                <div className="p-8 text-center space-y-3">
+                  <AlertCircle className="h-8 w-8 text-slate-400 mx-auto animate-pulse" />
+                  <p className="text-xs font-bold text-slate-600">No records match your filters</p>
+                  <p className="text-[11px] text-slate-500 max-w-sm mx-auto leading-normal">
+                    Turn off &ldquo;Show Relevant Records Only&rdquo; or clear filters to select candidates manually.
+                  </p>
                 </div>
               ) : (
                 <div>
@@ -455,8 +837,7 @@ export function EmailCenterView({
                               className="text-slate-500 hover:text-indigo-600 transition"
                               title="Toggle select all"
                             >
-                              {((dataSource === "contract" && selectedContractIds.length === currentSourceRecords.length) ||
-                                (dataSource === "probation" && selectedProbationIds.length === currentSourceRecords.length)) ? (
+                              {allSelected ? (
                                 <CheckSquare className="h-4.5 w-4.5 text-indigo-600 mx-auto" />
                               ) : (
                                 <Square className="h-4.5 w-4.5 mx-auto" />
@@ -472,20 +853,23 @@ export function EmailCenterView({
                       </thead>
                       <tbody className="divide-y divide-slate-150">
                         {currentSourceRecords.map(item => {
-                          const isChecked = dataSource === "contract" 
-                            ? selectedContractIds.includes(item.id) 
-                            : selectedProbationIds.includes(item.id);
+                          const isChecked = dataSource === "exit"
+                            ? ((item as any).sourceType === "Contract" ? selectedContractIds.includes(item.id) : selectedProbationIds.includes(item.id))
+                            : (dataSource === "contract" ? selectedContractIds.includes(item.id) : selectedProbationIds.includes(item.id));
                           
                           const lastSent = getLastSentDate(item);
+                          const daysRemaining = dataSource === "exit"
+                            ? ((item as any).originalRecord ? (item as any).originalRecord.daysRemaining : 0)
+                            : (item as any).daysRemaining;
 
                           return (
                             <tr 
                               key={item.id}
-                              className={`text-xs hover:bg-slate-50/50 transition ${isChecked ? "bg-indigo-500/2" : ""}`}
+                              className={`text-xs hover:bg-slate-50/50 transition ${isChecked ? "bg-indigo-50/10" : ""}`}
                             >
                               <td className="py-3 px-4 text-center">
                                 <button
-                                  onClick={() => handleToggleRecord(item.id)}
+                                  onClick={() => handleToggleRecord(item.id, dataSource === "exit" ? (item as any).sourceType : (dataSource === "contract" ? "Contract" : "Probation"))}
                                   className="text-slate-400 hover:text-indigo-600 transition"
                                 >
                                   {isChecked ? (
@@ -503,14 +887,18 @@ export function EmailCenterView({
                                 <div className="font-medium text-slate-700">{item.department}</div>
                                 <div className="text-[10px] text-slate-400">Mgr: {item.directManager}</div>
                               </td>
-                              <td className="py-3 px-4 text-center">
-                                <span className={`font-mono font-semibold ${item.daysRemaining <= 10 ? "text-rose-600 font-bold" : "text-slate-600"}`}>
-                                  {item.daysRemaining}d
+                              <td className="py-3 px-4 text-center font-mono">
+                                <span className={`font-semibold ${daysRemaining <= 10 ? "text-rose-600 font-bold" : "text-slate-600"}`}>
+                                  {daysRemaining}d
                                 </span>
                               </td>
                               <td className="py-3 px-4 space-y-1">
-                                <div>{renderStatusBadge(dataSource === "contract" ? (item as ContractItem).contractStatus : (item as ProbationItem).probationStatus)}</div>
-                                <div>{renderPriorityBadge(item.priority)}</div>
+                                <div>{renderStatusBadge(
+                                  dataSource === "exit" 
+                                    ? (item as ExitTrackerRow).exitProcessStatus 
+                                    : (dataSource === "contract" ? (item as ContractItem).contractStatus : (item as ProbationItem).probationStatus)
+                                )}</div>
+                                <div>{renderPriorityBadge(item.priority as any)}</div>
                               </td>
                               <td className="py-3 px-4">
                                 {lastSent ? (
@@ -532,11 +920,18 @@ export function EmailCenterView({
                   </div>
                   
                   {/* Footer summarizing chosen count */}
-                  <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500">
+                  <div className="px-6 py-3 bg-slate-50 border-t border-slate-200 flex justify-between items-center text-xs text-slate-500 font-sans">
                     <div>
                       Selected: <span className="font-bold text-indigo-600 font-mono">
-                        {dataSource === "contract" ? selectedContractIds.length : selectedProbationIds.length}
-                      </span> / {currentSourceRecords.length} records available
+                        {dataSource === "exit"
+                          ? (currentSourceRecords.filter(item => 
+                              (item as any).sourceType === "Contract" 
+                                ? selectedContractIds.includes(item.id) 
+                                : selectedProbationIds.includes(item.id)
+                            ).length)
+                          : (dataSource === "contract" ? selectedContractIds.length : selectedProbationIds.length)
+                        }
+                      </span> / {currentSourceRecords.length} records shown
                     </div>
                   </div>
                 </div>
@@ -586,7 +981,7 @@ export function EmailCenterView({
                   <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-500">Subject:</label>
                   <button
                     onClick={handleCopySubject}
-                    disabled={dataSource === "contract" ? selectedContractIds.length === 0 : selectedProbationIds.length === 0}
+                    disabled={!hasSelectedRecords}
                     className="flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                   >
                     <Copy className="h-3 w-3" /> Copy Subject
@@ -605,7 +1000,7 @@ export function EmailCenterView({
                 <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold">Email Body:</label>
                 <button
                   onClick={handleCopyBody}
-                  disabled={dataSource === "contract" ? selectedContractIds.length === 0 : selectedProbationIds.length === 0}
+                  disabled={!hasSelectedRecords}
                   className="flex items-center gap-1 text-[10px] font-bold text-indigo-400 hover:text-indigo-300 transition disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 >
                   <Copy className="h-3 w-3" /> Copy Body
@@ -620,7 +1015,7 @@ export function EmailCenterView({
                   placeholder="Select employees on the left to populate the draft data table..."
                   className="w-full bg-slate-950 border border-slate-800 rounded-lg p-4 text-xs text-slate-300 font-mono leading-relaxed h-[350px] resize-none focus:outline-none"
                 />
-                {(dataSource === "contract" ? selectedContractIds.length === 0 : selectedProbationIds.length === 0) && (
+                {!hasSelectedRecords && (
                   <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xs flex flex-col justify-center items-center p-6 text-center space-y-3">
                     <Mail className="h-8 w-8 text-slate-600 animate-bounce" />
                     <div>
@@ -635,7 +1030,7 @@ export function EmailCenterView({
               <div className="space-y-2.5 pt-2">
                 <button
                   onClick={handleCopyFullEmail}
-                  disabled={dataSource === "contract" ? selectedContractIds.length === 0 : selectedProbationIds.length === 0}
+                  disabled={!hasSelectedRecords}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-800 text-white font-semibold rounded-xl text-xs transition border border-indigo-500/10 shadow-md disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 >
                   <Copy className="h-3.5 w-3.5" />
@@ -644,7 +1039,7 @@ export function EmailCenterView({
 
                 <button
                   onClick={handleMarkAsSent}
-                  disabled={dataSource === "contract" ? selectedContractIds.length === 0 : selectedProbationIds.length === 0}
+                  disabled={!hasSelectedRecords}
                   className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-slate-800 hover:bg-slate-700 disabled:bg-slate-900 text-emerald-400 font-semibold rounded-xl text-xs transition border border-slate-700 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
                 >
                   <Check className="h-3.5 w-3.5" />
