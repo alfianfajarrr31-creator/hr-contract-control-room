@@ -53,6 +53,11 @@ export default function App() {
   const [departments, setDepartments] = useState<string[]>([]);
   const [directManagers, setDirectManagers] = useState<string[]>([]);
   
+  // Simulation Mode state (defaulting to false unless explicitly enabled)
+  const [simulationModeEnabled, setSimulationModeEnabled] = useState<boolean>(() => {
+    return localStorage.getItem("hr_contract_control_simmode_enabled") === "true";
+  });
+
   // Simulation Date (defaulting dynamically to today's date)
   const [simulationDate, setSimulationDate] = useState<string>(getTodayDateStr());
 
@@ -94,7 +99,11 @@ export default function App() {
     const savedContracts = localStorage.getItem("hr_contract_control_contracts");
     const savedProbations = localStorage.getItem("hr_contract_control_probations");
     const savedSimDate = localStorage.getItem("hr_contract_control_simdate");
+    const savedSimMode = localStorage.getItem("hr_contract_control_simmode_enabled");
     const hasInitializedFlag = localStorage.getItem("hr_contract_control_initialized") === "true";
+
+    const simMode = savedSimMode === "true";
+    setSimulationModeEnabled(simMode);
 
     const simDate = savedSimDate || getTodayDateStr();
     setSimulationDate(simDate);
@@ -139,9 +148,11 @@ export default function App() {
       rawProbations = [];
     }
 
-    // Process SLAs based on the simulation date
+    // Process SLAs based on the simulation date (conditional on Simulation Mode being active)
+    const refDate = simMode ? simDate : getTodayDateStr();
+
     const updatedContracts = rawContracts.map(c => {
-      const sla = computeContractSLA(c.contractEndDate, c.contractStatus, simDate);
+      const sla = computeContractSLA(c.contractEndDate, c.contractStatus, refDate);
       return {
         ...c,
         daysRemaining: sla.daysRemaining,
@@ -150,7 +161,7 @@ export default function App() {
     });
 
     const updatedProbations = rawProbations.map(p => {
-      const sla = computeProbationSLA(p.probationEndDate, p.finalDecision, simDate);
+      const sla = computeProbationSLA(p.probationEndDate, p.finalDecision, refDate);
       return {
         ...p,
         daysRemaining: sla.daysRemaining,
@@ -240,10 +251,17 @@ export default function App() {
   }, []);
 
   // Save data to localStorage whenever core data changes, but we'll also update priority/days based on date
-  const syncWithStorage = (updatedC: ContractItem[], updatedP: ProbationItem[], currentSimDate: string) => {
+  const syncWithStorage = (
+    updatedC: ContractItem[],
+    updatedP: ProbationItem[],
+    currentSimDate: string,
+    currentSimMode: boolean = simulationModeEnabled
+  ) => {
+    const refDate = currentSimMode ? currentSimDate : getTodayDateStr();
+
     // Process SLAs before saving
     const finalC = updatedC.map(c => {
-      const sla = computeContractSLA(c.contractEndDate, c.contractStatus, currentSimDate);
+      const sla = computeContractSLA(c.contractEndDate, c.contractStatus, refDate);
       return {
         ...c,
         daysRemaining: sla.daysRemaining,
@@ -252,7 +270,7 @@ export default function App() {
     });
 
     const finalP = updatedP.map(p => {
-      const sla = computeProbationSLA(p.probationEndDate, p.finalDecision, currentSimDate);
+      const sla = computeProbationSLA(p.probationEndDate, p.finalDecision, refDate);
       return {
         ...p,
         daysRemaining: sla.daysRemaining,
@@ -265,6 +283,7 @@ export default function App() {
     localStorage.setItem("hr_contract_control_contracts", JSON.stringify(finalC));
     localStorage.setItem("hr_contract_control_probations", JSON.stringify(finalP));
     localStorage.setItem("hr_contract_control_simdate", currentSimDate);
+    localStorage.setItem("hr_contract_control_simmode_enabled", currentSimMode ? "true" : "false");
 
     // Auto-scan for any new HR PICs that aren't currently in hrPics and add them!
     const uniqueNewPics = new Set<string>();
@@ -334,7 +353,7 @@ export default function App() {
   const handleSimulationDateChange = (newDate: string) => {
     setSimulationDate(newDate);
     // Recompute all on change
-    syncWithStorage(contracts, probations, newDate);
+    syncWithStorage(contracts, probations, newDate, simulationModeEnabled);
   };
 
   // HR PIC Management Handlers
@@ -827,6 +846,8 @@ export default function App() {
     ...probations.filter(isProbationExit)
   ].filter(row => row.exitProcessStatus !== "Closed" && row.closedDate === undefined).length;
 
+  const effectiveToday = simulationModeEnabled ? simulationDate : getTodayDateStr();
+
   return (
     <div className="min-h-screen bg-slate-50 flex" id="app-layout">
       
@@ -974,22 +995,51 @@ export default function App() {
         {/* Bottom Panel: Simulation Date Picker & Sandbox Controls */}
         <div className="p-4 border-t border-slate-800/80 bg-slate-950/40 space-y-4">
           
-          {/* Simulation Date Picker */}
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 uppercase tracking-wider font-mono">
-              <Calendar className="h-3.5 w-3.5 text-indigo-400" />
-              SLA Reference Date
+          {/* Simulation Mode Toggle and controls */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-mono">Simulation Mode</span>
+              <button
+                onClick={() => {
+                  const nextVal = !simulationModeEnabled;
+                  setSimulationModeEnabled(nextVal);
+                  localStorage.setItem("hr_contract_control_simmode_enabled", nextVal ? "true" : "false");
+                  syncWithStorage(contracts, probations, simulationDate, nextVal);
+                }}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold tracking-wider uppercase transition border cursor-pointer ${
+                  simulationModeEnabled
+                    ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                    : "bg-slate-800 text-slate-500 border-slate-700/50"
+                }`}
+              >
+                {simulationModeEnabled ? "Active" : "Disabled"}
+              </button>
             </div>
-            <input
-              type="date"
-              id="simulation-date-picker"
-              value={simulationDate}
-              onChange={(e) => handleSimulationDateChange(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-lg text-xs py-2 px-3 text-slate-200 font-mono focus:ring-1 focus:ring-indigo-500 transition outline-none"
-            />
-            <p className="text-[10px] text-slate-500 leading-normal font-sans">
-              All remaining days and SLA alerts calculate dynamically based on this simulated date.
-            </p>
+
+            {simulationModeEnabled ? (
+              <div className="space-y-2 animate-fade-in">
+                <input
+                  type="date"
+                  id="simulation-date-picker"
+                  value={simulationDate}
+                  onChange={(e) => handleSimulationDateChange(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-lg text-xs py-2 px-3 text-slate-200 font-mono focus:ring-1 focus:ring-indigo-500 transition outline-none"
+                />
+                <button
+                  onClick={() => {
+                    const todayStr = getTodayDateStr();
+                    handleSimulationDateChange(todayStr);
+                  }}
+                  className="w-full py-1 bg-slate-800 hover:bg-slate-750 text-[10px] font-semibold text-slate-300 rounded border border-slate-700/50 transition cursor-pointer"
+                >
+                  Set to Today ({getTodayDateStr()})
+                </button>
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-500 leading-normal font-sans">
+                Currently using today's real-time date <strong className="font-mono">{getTodayDateStr()}</strong> for all calculations.
+              </p>
+            )}
           </div>
 
           {/* Reset Sandbox Data */}
@@ -1028,6 +1078,39 @@ export default function App() {
             </div>
           </div>
         </header>
+
+        {/* Simulation Mode Active Banner */}
+        {simulationModeEnabled && (
+          <div className="bg-amber-50 border-b border-amber-200 px-8 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-amber-800 text-xs font-medium animate-fade-in" id="simulation-mode-banner">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-2 w-2 rounded-full bg-amber-500 animate-pulse"></span>
+              <span>
+                <strong>Simulation Mode Active:</strong> Currently calculating all SLAs using reference date <span className="font-mono bg-amber-100 px-1.5 py-0.5 rounded text-amber-900 font-bold">{simulationDate}</span> instead of today's real date.
+              </span>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+              <button
+                onClick={() => {
+                  const todayStr = getTodayDateStr();
+                  handleSimulationDateChange(todayStr);
+                }}
+                className="px-2.5 py-1 bg-amber-100 hover:bg-amber-200 text-amber-900 rounded font-semibold transition cursor-pointer border border-amber-300"
+              >
+                Use Today ({getTodayDateStr()})
+              </button>
+              <button
+                onClick={() => {
+                  setSimulationModeEnabled(false);
+                  localStorage.setItem("hr_contract_control_simmode_enabled", "false");
+                  syncWithStorage(contracts, probations, simulationDate, false);
+                }}
+                className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded font-semibold transition cursor-pointer"
+              >
+                Disable Simulation Mode
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Content Views */}
         <main className="flex-1 overflow-y-auto p-8" id="main-scroller">
@@ -1111,6 +1194,7 @@ export default function App() {
             <DashboardView
               contracts={contracts}
               probations={probations}
+              simulationDate={effectiveToday}
               onNavigateToContracts={() => setActiveTab("contracts")}
               onNavigateToProbation={() => setActiveTab("probation")}
               onEditContract={(c) => {
@@ -1127,6 +1211,7 @@ export default function App() {
           {activeTab === "contracts" && (
             <ContractTrackerView
               contracts={contracts}
+              simulationDate={effectiveToday}
               hrPics={hrPics}
               departments={departments}
               directManagers={directManagers}
@@ -1154,6 +1239,7 @@ export default function App() {
             <ProbationTrackerView
               probations={probations}
               contracts={contracts}
+              simulationDate={effectiveToday}
               hrPics={hrPics}
               departments={departments}
               directManagers={directManagers}
@@ -1254,7 +1340,7 @@ export default function App() {
             <ImportExcelView
               existingContracts={contracts}
               existingProbations={probations}
-              simulationDate={simulationDate}
+              simulationDate={effectiveToday}
               onImportComplete={handleImportComplete}
               onCancel={() => setActiveTab("dashboard")}
             />
@@ -1264,9 +1350,9 @@ export default function App() {
             <EmailCenterView
               contracts={contracts}
               probations={probations}
-              simulationDate={simulationDate}
-              onUpdateContracts={(updated) => syncWithStorage(updated, probations, simulationDate)}
-              onUpdateProbations={(updated) => syncWithStorage(contracts, updated, simulationDate)}
+              simulationDate={effectiveToday}
+              onUpdateContracts={(updated) => syncWithStorage(updated, probations, simulationDate, simulationModeEnabled)}
+              onUpdateProbations={(updated) => syncWithStorage(contracts, updated, simulationDate, simulationModeEnabled)}
               accessAssetFormLink={accessAssetFormLink}
               exitClearanceFormLink={exitClearanceFormLink}
               exitInterviewFormLink={exitInterviewFormLink}
@@ -1277,7 +1363,7 @@ export default function App() {
             <ExitTrackerView
               contracts={contracts}
               probations={probations}
-              simulationDate={simulationDate}
+              simulationDate={effectiveToday}
               onUpdateContract={handleUpdateContractInline}
               onUpdateProbation={handleUpdateProbationInline}
               onNavigateToSource={(sourceType, employeeName) => {

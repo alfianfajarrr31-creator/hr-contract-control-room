@@ -41,6 +41,7 @@ interface ContractTrackerViewProps {
   onViewExitProcess?: (employeeName: string) => void;
   initialSearchTerm?: string;
   onClearInitialSearch?: () => void;
+  simulationDate?: string;
 }
 
 export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
@@ -55,7 +56,8 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
   onUpdateContract,
   onViewExitProcess,
   initialSearchTerm,
-  onClearInitialSearch
+  onClearInitialSearch,
+  simulationDate
 }) => {
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
@@ -671,7 +673,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
                                     <div className="flex flex-wrap gap-2">
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           let deadline = "";
                                           if (c.lastWorkingDate) {
                                             const lDate = new Date(c.lastWorkingDate);
@@ -698,7 +700,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateContract?.({
                                             ...c,
                                             accessAssetFormCompletedDate: today,
@@ -713,7 +715,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateContract?.({
                                             ...c,
                                             exitClearanceCompletedDate: today,
@@ -728,7 +730,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateContract?.({
                                             ...c,
                                             exitInterviewCompletedDate: today,
@@ -744,7 +746,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateContract?.({
                                             ...c,
                                             exitInterviewCompletedDate: today,
@@ -760,7 +762,7 @@ export const ContractTrackerView: React.FC<ContractTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateContract?.({
                                             ...c,
                                             exitClosedDate: today,

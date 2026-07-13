@@ -28,6 +28,7 @@ interface DashboardViewProps {
   onNavigateToProbation: () => void;
   onEditContract: (contract: ContractItem) => void;
   onEditProbation: (probation: ProbationItem) => void;
+  simulationDate?: string;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -36,7 +37,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onNavigateToContracts,
   onNavigateToProbation,
   onEditContract,
-  onEditProbation
+  onEditProbation,
+  simulationDate
 }) => {
   // Count helpers
   const activeContracts = contracts.filter(c => 
@@ -431,8 +433,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
                   );
                   const all = [...allExitsContracts, ...allExitsProbations];
-                  const d = new Date();
-                  const todayStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                  const d = simulationDate ? new Date(simulationDate) : new Date();
+                  const todayStr = simulationDate || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                   return all.filter(item => {
                     if (item.exitProcessStatus === "Closed") return false;
                     if (!item.exitDocumentsReturnDeadline) return false;
@@ -464,8 +466,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     (p.exitProcessStatus && p.exitProcessStatus !== "Not Started")
                   );
                   const all = [...allExitsContracts, ...allExitsProbations];
-                  const d = new Date();
-                  const thisYearMonth = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                  const d = simulationDate ? new Date(simulationDate) : new Date();
+                  const thisYearMonth = (simulationDate || `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`).slice(0, 7);
                   return all.filter(item => {
                     if (item.exitProcessStatus !== "Closed") return false;
                     const closedDate = item.exitClosedDate || item.exitInterviewCompletedDate || item.exitClearanceCompletedDate;

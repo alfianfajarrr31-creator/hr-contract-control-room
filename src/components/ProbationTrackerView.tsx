@@ -46,6 +46,7 @@ interface ProbationTrackerViewProps {
   onViewExitProcess?: (employeeName: string) => void;
   initialSearchTerm?: string;
   onClearInitialSearch?: () => void;
+  simulationDate?: string;
 }
 
 export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
@@ -62,7 +63,8 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
   onUpdateProbation,
   onViewExitProcess,
   initialSearchTerm,
-  onClearInitialSearch
+  onClearInitialSearch,
+  simulationDate
 }) => {
   // Filters & State
   const [searchTerm, setSearchTerm] = useState("");
@@ -221,7 +223,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
       return;
     }
 
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = simulationDate || new Date().toISOString().split('T')[0];
 
     // Generate a truly unique Contract ID (duplicate prevention)
     let newContractId = `CONV-${conversionProbation.employeeId || "EMP"}-${Date.now()}`;
@@ -857,7 +859,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
                                     <div className="flex flex-wrap gap-2">
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           let deadline = "";
                                           if (p.lastWorkingDate) {
                                             const lDate = new Date(p.lastWorkingDate);
@@ -884,7 +886,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateProbation?.({
                                             ...p,
                                             accessAssetFormCompletedDate: today,
@@ -899,7 +901,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateProbation?.({
                                             ...p,
                                             exitClearanceCompletedDate: today,
@@ -914,7 +916,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateProbation?.({
                                             ...p,
                                             exitInterviewCompletedDate: today,
@@ -930,7 +932,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateProbation?.({
                                             ...p,
                                             exitInterviewCompletedDate: today,
@@ -946,7 +948,7 @@ export const ProbationTrackerView: React.FC<ProbationTrackerViewProps> = ({
 
                                       <button
                                         onClick={() => {
-                                          const today = new Date().toISOString().slice(0, 10);
+                                          const today = simulationDate || new Date().toISOString().slice(0, 10);
                                           onUpdateProbation?.({
                                             ...p,
                                             exitClosedDate: today,
