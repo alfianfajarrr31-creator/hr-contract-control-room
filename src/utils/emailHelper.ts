@@ -187,47 +187,57 @@ export function getRelevantRecordsForEmailType(
 
 // 2. Format lists into clean text table or bullet points
 export function formatContractListForEmail(contracts: ContractItem[]): string {
-  if (contracts.length === 0) return "[No Contract Data Selected]";
+  if (contracts.length === 0) return "";
   
-  let result = "--------------------------------------------------------------------------------------------------\n";
-  result += "Nama Karyawan    | Jabatan          | Departemen   | Manager      | Expired Date | Sisa Hari | Rekomendasi\n";
-  result += "--------------------------------------------------------------------------------------------------\n";
-  
-  contracts.forEach(c => {
-    const name = c.employeeName.padEnd(16).substring(0, 16);
-    const pos = c.position.padEnd(16).substring(0, 16);
-    const dept = c.department.padEnd(12).substring(0, 12);
-    const manager = c.directManager.padEnd(12).substring(0, 12);
-    const exp = c.contractEndDate.padEnd(12);
-    const days = String(c.daysRemaining).padStart(4) + " Hari ";
-    const rec = c.userRecommendation;
-    
-    result += `${name} | ${pos} | ${dept} | ${manager} | ${exp} | ${days} | ${rec}\n`;
-  });
-  result += "--------------------------------------------------------------------------------------------------";
-  return result;
+  return contracts.map(c => {
+    return `Nama Karyawan:
+${c.employeeName}
+
+Jabatan:
+${c.position}
+
+Department:
+${c.department}
+
+Tanggal Berakhir:
+${c.contractEndDate}
+
+Sisa Hari:
+${c.daysRemaining} Hari
+
+Rekomendasi:
+${c.userRecommendation && c.userRecommendation !== "None" ? c.userRecommendation : "-"}`;
+  }).join("\n\n================================\n\n");
 }
 
 export function formatProbationListForEmail(probations: ProbationItem[]): string {
-  if (probations.length === 0) return "[No Probation Data Selected]";
+  if (probations.length === 0) return "";
   
-  let result = "--------------------------------------------------------------------------------------------------\n";
-  result += "Nama Karyawan    | Jabatan          | Departemen   | Manager      | Expired Date | Sisa Hari | Keputusan Final\n";
-  result += "--------------------------------------------------------------------------------------------------\n";
-  
-  probations.forEach(p => {
-    const name = p.employeeName.padEnd(16).substring(0, 16);
-    const pos = p.position.padEnd(16).substring(0, 16);
-    const dept = p.department.padEnd(12).substring(0, 12);
-    const manager = p.directManager.padEnd(12).substring(0, 12);
-    const exp = p.probationEndDate.padEnd(12);
-    const days = String(p.daysRemaining).padStart(4) + " Hari ";
-    const dec = p.finalDecision || "-";
-    
-    result += `${name} | ${pos} | ${dept} | ${manager} | ${exp} | ${days} | ${dec}\n`;
-  });
-  result += "--------------------------------------------------------------------------------------------------";
-  return result;
+  return probations.map(p => {
+    let rec = "-";
+    if (p.userRecommendation && p.userRecommendation !== "None") {
+      rec = p.userRecommendation;
+    } else if (p.finalDecision && p.finalDecision !== "-") {
+      rec = p.finalDecision;
+    }
+    return `Nama Karyawan:
+${p.employeeName}
+
+Jabatan:
+${p.position}
+
+Department:
+${p.department}
+
+Tanggal Berakhir:
+${p.probationEndDate}
+
+Sisa Hari:
+${p.daysRemaining} Hari
+
+Rekomendasi:
+${rec}`;
+  }).join("\n\n================================\n\n");
 }
 
 // 3. Generate Subject based on template
@@ -326,8 +336,15 @@ export function generateEmailBody(
   const contractList = records.contracts.length > 0 ? formatContractListForEmail(records.contracts) : "";
   const probationList = records.probations.length > 0 ? formatProbationListForEmail(records.probations) : "";
   
-  // Combine lists cleanly
-  const dataList = [contractList, probationList].filter(l => l && l !== "[No Contract Data Selected]" && l !== "[No Probation Data Selected]").join("\n\n");
+  // Combine lists cleanly with plain text headers for Contract vs Probation
+  let dataList = "";
+  if (records.contracts.length > 0 && records.probations.length > 0) {
+    dataList = `KARYAWAN KONTRAK\n\n${contractList}\n\nKARYAWAN PROBATION\n\n${probationList}`;
+  } else if (records.contracts.length > 0) {
+    dataList = `KARYAWAN KONTRAK\n\n${contractList}`;
+  } else if (records.probations.length > 0) {
+    dataList = `KARYAWAN PROBATION\n\n${probationList}`;
+  }
 
   const managerName = source === "contract" 
     ? (records.contracts[0]?.directManager || "[User/Manager]")
