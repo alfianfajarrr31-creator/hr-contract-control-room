@@ -76,6 +76,9 @@ export function EmailCenterView({
   const [selectedHrPic, setSelectedHrPic] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
 
+  // 7. Format Mode State
+  const [emailFormatMode, setEmailFormatMode] = useState<"automatic" | "detailed" | "compact" | "summary_export">("automatic");
+
   // Template config for UI
   const templates: { key: EmailTemplateType; label: string; description: string; allowedSources: ("contract" | "probation" | "exit")[] }[] = [
     { 
@@ -404,9 +407,12 @@ export function EmailCenterView({
   const selectedContractsList = contracts.filter(c => selectedContractIds.includes(c.id));
   const selectedProbationsList = probations.filter(p => selectedProbationIds.includes(p.id));
 
+  // Effective Date calculation (Simulation Date if enabled, else current date)
+  const effectiveDate = (simulationDate && simulationDate.trim()) ? simulationDate : (new Date().toISOString().split('T')[0]);
+
   // Date format helper (Month Year)
   const getFormattedMonthYear = () => {
-    const d = new Date(simulationDate);
+    const d = new Date(effectiveDate);
     const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     return `${months[d.getMonth()]} ${d.getFullYear()}`;
   };
@@ -488,8 +494,79 @@ export function EmailCenterView({
       accessAsset: accessAssetFormLink,
       exitClearance: exitClearanceFormLink,
       exitInterview: exitInterviewFormLink
-    }
+    },
+    emailFormatMode,
+    effectiveDate
   );
+
+  // CSV Export function
+  const handleExportCSV = () => {
+    const fields = [
+      "Employee Name",
+      "Position",
+      "Department",
+      "Direct Manager",
+      "HR PIC",
+      "Contract End Date",
+      "Days Remaining",
+      "Status",
+      "Recommendation",
+      "Notes"
+    ];
+    
+    const rows = [fields];
+    
+    selectedContractsList.forEach(c => {
+      rows.push([
+        c.employeeName || "",
+        c.position || "",
+        c.department || "",
+        c.directManager || "",
+        c.hrPic || "",
+        c.contractEndDate || "",
+        String(c.daysRemaining ?? ""),
+        c.contractStatus || "",
+        c.userRecommendation || "-",
+        c.notes || ""
+      ]);
+    });
+    
+    selectedProbationsList.forEach(p => {
+      rows.push([
+        p.employeeName || "",
+        p.position || "",
+        p.department || "",
+        p.directManager || "",
+        p.hrPic || "",
+        p.probationEndDate || "",
+        String(p.daysRemaining ?? ""),
+        p.probationStatus || "",
+        p.userRecommendation || p.finalDecision || "-",
+        p.notes || ""
+      ]);
+    });
+    
+    // Convert array of arrays to CSV string safely
+    const csvContent = rows
+      .map(rowArray => 
+        rowArray.map(val => {
+          const cleanVal = String(val ?? "").replace(/"/g, '""');
+          return `"${cleanVal}"`;
+        }).join(",")
+      )
+      .join("\n");
+    
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `email_export_${effectiveDate}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("CSV exported successfully!");
+  };
 
   // Copy functions
   const showToast = (msg: string) => {
@@ -954,6 +1031,91 @@ export function EmailCenterView({
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-slate-800 text-indigo-300 border border-indigo-900/50 uppercase font-mono">
                 Manual Copy-Paste
               </span>
+            </div>
+
+            {/* Email Format Mode Select & Preview Info Card */}
+            <div className="p-6 border-b border-slate-800 bg-slate-950/20 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Format Mode Dropdown */}
+                <div className="space-y-1">
+                  <label className="block text-[10px] font-mono uppercase tracking-wider text-slate-400 font-bold">Email Format Mode:</label>
+                  <select
+                    value={emailFormatMode}
+                    onChange={(e) => setEmailFormatMode(e.target.value as any)}
+                    className="w-full bg-slate-950 border border-slate-850 rounded-lg px-3 py-2 text-xs text-slate-100 font-sans focus:ring-1 focus:ring-indigo-500 focus:outline-none cursor-pointer"
+                  >
+                    <option value="automatic">Automatic (Smart Fallback)</option>
+                    <option value="detailed">Detailed Block</option>
+                    <option value="compact">Compact List</option>
+                    <option value="summary_export">Summary + Export (CSV)</option>
+                  </select>
+                </div>
+
+                {/* Preview Info Panel */}
+                <div className="bg-slate-950/80 border border-slate-800 rounded-lg p-3 space-y-1.5 text-xs">
+                  <div className="text-[10px] font-mono uppercase tracking-wider text-slate-500 font-bold border-b border-slate-800/80 pb-1">
+                    Preview Info
+                  </div>
+                  <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] font-sans">
+                    <span className="text-slate-400">Records Count:</span>
+                    <span className="font-mono text-slate-200 font-bold text-right">
+                      {selectedContractsList.length + selectedProbationsList.length}
+                    </span>
+
+                    <span className="text-slate-400">Selected Format:</span>
+                    <span className="font-mono text-indigo-400 font-bold text-right uppercase">
+                      {(() => {
+                        const count = selectedContractsList.length + selectedProbationsList.length;
+                        if (emailFormatMode === "detailed") return "Detailed";
+                        if (emailFormatMode === "compact") return "Compact";
+                        if (emailFormatMode === "summary_export") return "Summary Export";
+                        // Automatic mode resolution
+                        if (count <= 5) return "Automatic (Detailed)";
+                        if (count <= 20) return "Automatic (Compact)";
+                        return "Automatic (Summary Export)";
+                      })()}
+                    </span>
+
+                    <span className="text-slate-400">Effective Date:</span>
+                    <span className="font-mono text-emerald-400 font-bold text-right">
+                      {effectiveDate}
+                    </span>
+
+                    <span className="text-slate-400">Recipient Count:</span>
+                    <span className="font-mono text-slate-200 font-bold text-right">
+                      {(() => {
+                        const recStr = getRecipientsSuggestion();
+                        if (!recStr || recStr.startsWith("[")) return 0;
+                        return recStr.split(";").length;
+                      })()} Unique
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CSV Export Button: shown when active format resolves to summary_export */}
+              {(() => {
+                const count = selectedContractsList.length + selectedProbationsList.length;
+                const isSummaryExportActive = emailFormatMode === "summary_export" || (emailFormatMode === "automatic" && count > 20);
+                if (!isSummaryExportActive) return null;
+                return (
+                  <div className="bg-indigo-950/40 border border-indigo-900/60 rounded-lg p-3 flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse">
+                    <div className="space-y-0.5 text-center sm:text-left">
+                      <p className="text-xs font-bold text-indigo-300">Summary + Export mode is active</p>
+                      <p className="text-[10px] text-indigo-400">
+                        Total Employees: <span className="font-bold text-indigo-200">{count}</span> | Export File: <span className="font-mono text-indigo-200 font-semibold">email_export_{effectiveDate}.csv</span>
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleExportCSV}
+                      disabled={count === 0}
+                      className="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-850 text-white font-bold rounded-lg text-xs transition border border-indigo-500/20 shadow-sm cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:pointer-events-none"
+                    >
+                      Download Export File
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Recipients, CC, Subject metadata fields */}

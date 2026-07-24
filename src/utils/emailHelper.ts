@@ -240,6 +240,24 @@ ${rec}`;
   }).join("\n\n================================\n\n");
 }
 
+export function formatCompactContractList(contracts: ContractItem[]): string {
+  if (contracts.length === 0) return "";
+  return contracts.map((c, idx) => {
+    return `${idx + 1}. ${c.employeeName}
+   ${c.position} - ${c.department}
+   Berakhir: ${c.contractEndDate} (${c.daysRemaining} Hari)`;
+  }).join("\n\n");
+}
+
+export function formatCompactProbationList(probations: ProbationItem[]): string {
+  if (probations.length === 0) return "";
+  return probations.map((p, idx) => {
+    return `${idx + 1}. ${p.employeeName}
+   ${p.position} - ${p.department}
+   Berakhir: ${p.probationEndDate} (${p.daysRemaining} Hari)`;
+  }).join("\n\n");
+}
+
 // 3. Generate Subject based on template
 export function generateEmailSubject(
   type: EmailTemplateType, 
@@ -331,10 +349,51 @@ export function generateEmailBody(
   records: { contracts: ContractItem[]; probations: ProbationItem[] },
   source: "contract" | "probation" | "both",
   currentMonthYear: string,
-  exitLinks?: { accessAsset: string; exitClearance: string; exitInterview: string }
+  exitLinks?: { accessAsset: string; exitClearance: string; exitInterview: string },
+  formatMode: "automatic" | "detailed" | "compact" | "summary_export" = "automatic",
+  simulationDate?: string
 ): string {
-  const contractList = records.contracts.length > 0 ? formatContractListForEmail(records.contracts) : "";
-  const probationList = records.probations.length > 0 ? formatProbationListForEmail(records.probations) : "";
+  const effectiveDate = (simulationDate && simulationDate.trim()) ? simulationDate : (new Date().toISOString().split('T')[0]);
+  const totalCount = records.contracts.length + records.probations.length;
+  
+  // Resolve active format mode
+  let activeMode = formatMode;
+  if (formatMode === "automatic") {
+    if (totalCount <= 5) {
+      activeMode = "detailed";
+    } else if (totalCount <= 20) {
+      activeMode = "compact";
+    } else {
+      activeMode = "summary_export";
+    }
+  }
+
+  // Summary + Export layout
+  if (activeMode === "summary_export") {
+    return `Dear Bapak/Ibu,
+
+Mohon bantuannya untuk melakukan review.
+
+Total karyawan:
+${totalCount} orang
+
+Detail daftar karyawan tersedia pada file:
+email_export_${effectiveDate}.csv
+
+Terima kasih.`;
+  }
+
+  // Generate lists based on active mode
+  let contractList = "";
+  let probationList = "";
+
+  if (activeMode === "detailed") {
+    contractList = records.contracts.length > 0 ? formatContractListForEmail(records.contracts) : "";
+    probationList = records.probations.length > 0 ? formatProbationListForEmail(records.probations) : "";
+  } else {
+    contractList = records.contracts.length > 0 ? formatCompactContractList(records.contracts) : "";
+    probationList = records.probations.length > 0 ? formatCompactProbationList(records.probations) : "";
+  }
   
   // Combine lists cleanly with plain text headers for Contract vs Probation
   let dataList = "";
